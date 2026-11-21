@@ -7,7 +7,7 @@ function buildSuggestedLook(activeIndex) {
   return [
     { productId: PRODUCTS[activeIndex].id, size: 'M' },
     { productId: PRODUCTS[(activeIndex + 1) % total].id, size: 'M' },
-    { productId: PRODUCTS[(activeIndex + 3) % total].id, size: 'M' }
+    { productId: PRODUCTS[(activeIndex + 2) % total].id, size: 'M' }
   ];
 }
 
@@ -16,10 +16,9 @@ export default function LookBuilder({
   onAddLookCombo
 }) {
   const [slots, setSlots] = useState(() => buildSuggestedLook(activeIndex));
-  const [pickingSlot, setPickingSlot] = useState(null); // 0, 1, 2 ou null
+  const [pickingSlot, setPickingSlot] = useState(null);
   const [userCustomized, setUserCustomized] = useState(false);
 
-  // Atualiza sugestões combinando com a peça ativa enquanto a cliente não customizou manualmente
   useEffect(() => {
     if (!userCustomized) {
       setSlots(buildSuggestedLook(activeIndex));
@@ -91,34 +90,32 @@ export default function LookBuilder({
       className="relative w-full bg-[#EFEAE2] py-24 sm:py-32 border-t border-[#181615]/8"
     >
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
-        {/* Cabeçalho */}
         <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-[#C88A75]/20 px-3.5 py-1 text-[11px] font-bold uppercase tracking-[0.26em] text-[#6B3B2B]">
+            <span className="inline-flex items-center gap-2 rounded-full bg-[#D47A6A]/20 px-3.5 py-1 text-[11px] font-extrabold uppercase tracking-[0.26em] text-[#6B2D22]">
               <Sparkles className="h-3.5 w-3.5" />
-              15% OFF Automático no Combo
+              FIT CHECK • 15% OFF NO COMBO
             </span>
             <h2 className="mt-3 font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold uppercase leading-[0.96] tracking-[-0.03em] text-[#181615]">
               MONTE SEU LOOK (3 PEÇAS)
             </h2>
             <p className="mt-3 max-w-xl text-sm text-[#181615]/70">
-              Pré-selecionamos uma combinação harmônica em torno de{' '}
+              Combo streetwear pré-selecionado em torno de{' '}
               <strong className="text-[#181615]">{PRODUCTS[activeIndex].name}</strong>.
-              Remova ou troque qualquer peça clicando nas miniaturas abaixo.
+              Misture peças, troque pelas miniaturas e libere 15% OFF automático.
             </p>
           </div>
 
           <button
             type="button"
             onClick={resetSuggestion}
-            className="inline-flex items-center gap-2 self-start md:self-end rounded-full border border-[#181615]/20 bg-[#F7F4F0] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#181615] transition-all hover:bg-[#181615] hover:text-[#F7F4F0]"
+            className="inline-flex items-center gap-2 self-start md:self-end rounded-full border border-[#181615]/20 bg-[#F7F4F0] px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-[#181615] transition-all hover:bg-[#181615] hover:text-[#F7F4F0]"
           >
             <RefreshCw className="h-3.5 w-3.5" />
-            <span>Curadoria Automática</span>
+            <span>Sugestão Stylist</span>
           </button>
         </div>
 
-        {/* Grade de 3 Slots Interativos */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {resolvedSlots.map((slot, slotIdx) => {
             const isPicking = pickingSlot === slotIdx;
@@ -133,7 +130,7 @@ export default function LookBuilder({
                 }`}
               >
                 <div className="mb-3 flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.26em] text-[#8C7554]">
+                  <span className="text-[11px] font-extrabold uppercase tracking-[0.26em] text-[#8C7554]">
                     Peça 0{slotIdx + 1}
                   </span>
 
@@ -151,7 +148,6 @@ export default function LookBuilder({
 
                 {slot?.product ? (
                   <>
-                    {/* Peça preenchida */}
                     <div
                       className="relative mb-4 aspect-[4/5] w-full overflow-hidden rounded-[1.4rem]"
                       style={{ backgroundColor: slot.product.colorSoft }}
@@ -159,19 +155,18 @@ export default function LookBuilder({
                       <img
                         src={getProductImageUrl(slot.product, 'front')}
                         alt={slot.product.name}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-contain p-2"
                       />
                     </div>
 
                     <div>
-                      <h3 className="font-serif text-xl font-semibold text-[#181615]">
+                      <h3 className="font-display text-lg font-extrabold uppercase text-[#181615]">
                         {slot.product.name}
                       </h3>
                       <p className="mt-0.5 text-sm font-bold text-[#181615]/85">
                         {formatYen(slot.product.price)}
                       </p>
 
-                      {/* Tamanho do slot */}
                       <div className="mt-3 flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1">
                           {['P', 'M', 'G', 'GG'].map((sz) => (
@@ -195,7 +190,7 @@ export default function LookBuilder({
                           onClick={() =>
                             setPickingSlot(isPicking ? null : slotIdx)
                           }
-                          className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8C7554] underline underline-offset-4 hover:text-[#181615]"
+                          className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8C7554] underline underline-offset-4 hover:text-[#181615]"
                         >
                           {isPicking ? 'Fechar' : 'Trocar'}
                         </button>
@@ -203,7 +198,6 @@ export default function LookBuilder({
                     </div>
                   </>
                 ) : (
-                  /* Slot vazio convidando a escolher */
                   <button
                     type="button"
                     onClick={() => setPickingSlot(slotIdx)}
@@ -212,7 +206,7 @@ export default function LookBuilder({
                     <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#181615] text-[#F7F4F0]">
                       <Plus className="h-5 w-5" />
                     </span>
-                    <span className="font-serif text-xl font-semibold text-[#181615]">
+                    <span className="font-display text-lg font-extrabold uppercase text-[#181615]">
                       Escolher Peça
                     </span>
                     <span className="mt-1 text-xs text-[#181615]/60">
@@ -221,9 +215,8 @@ export default function LookBuilder({
                   </button>
                 )}
 
-                {/* Seletor de Miniaturas Integrado ao Slot */}
                 <div className="mt-4 border-t border-[#181615]/10 pt-3">
-                  <span className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#181615]/50 mb-2">
+                  <span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-[#181615]/50 mb-2">
                     {isPicking || !slot?.product
                       ? 'Selecione uma peça:'
                       : 'Troca rápida por miniatura:'}
@@ -247,7 +240,7 @@ export default function LookBuilder({
                           <img
                             src={getProductImageUrl(p, 'front')}
                             alt={p.shortName}
-                            className="h-full w-full object-cover"
+                            className="h-full w-full object-contain p-0.5"
                           />
                           {selected && (
                             <span className="absolute bottom-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#181615] text-[#F7F4F0]">
@@ -264,22 +257,21 @@ export default function LookBuilder({
           })}
         </div>
 
-        {/* Barra de Resumo & CTA Combo 15% OFF */}
         <div className="mt-8 flex flex-col lg:flex-row items-center justify-between gap-6 rounded-[2rem] border border-[#181615]/12 bg-[#181615] px-6 py-6 sm:px-9 text-[#F7F4F0] shadow-2xl">
           <div className="flex flex-wrap items-center gap-6 sm:gap-10">
             <div>
-              <span className="block text-[10px] font-semibold uppercase tracking-[0.26em] text-[#D8C7B4]">
+              <span className="block text-[10px] font-bold uppercase tracking-[0.26em] text-[#D8C7B4]">
                 Peças no Look
               </span>
-              <span className="font-serif text-2xl font-semibold">
-                {filledCount} / 3 selecionadas
+              <span className="font-display text-2xl font-extrabold">
+                {filledCount} / 3
               </span>
             </div>
 
             <div className="h-10 w-[1px] bg-white/15 hidden sm:block" />
 
             <div>
-              <span className="block text-[10px] font-semibold uppercase tracking-[0.26em] text-white/55">
+              <span className="block text-[10px] font-bold uppercase tracking-[0.26em] text-white/55">
                 Subtotal
               </span>
               <span
@@ -293,20 +285,20 @@ export default function LookBuilder({
 
             {discountUnlocked && (
               <div>
-                <span className="block text-[10px] font-semibold uppercase tracking-[0.26em] text-[#C88A75]">
+                <span className="block text-[10px] font-bold uppercase tracking-[0.26em] text-[#D47A6A]">
                   Economia (15% OFF)
                 </span>
-                <span className="text-lg font-bold text-[#E7B6A5]">
+                <span className="text-lg font-bold text-[#F3B9AE]">
                   -{formatYen(discountAmount)}
                 </span>
               </div>
             )}
 
             <div>
-              <span className="block text-[10px] font-semibold uppercase tracking-[0.26em] text-[#D8C7B4]">
+              <span className="block text-[10px] font-bold uppercase tracking-[0.26em] text-[#D8C7B4]">
                 Total do Combo
               </span>
-              <span className="font-serif text-3xl font-bold text-white">
+              <span className="font-display text-3xl font-extrabold text-white">
                 {formatYen(total)}
               </span>
             </div>
@@ -316,7 +308,7 @@ export default function LookBuilder({
             type="button"
             disabled={!discountUnlocked}
             onClick={handleAddCombo}
-            className="btn-shimmer inline-flex w-full lg:w-auto items-center justify-center gap-2.5 rounded-full bg-[#F7F4F0] px-8 py-4 text-xs font-extrabold uppercase tracking-[0.18em] text-[#181615] transition-all hover:bg-[#D8C7B4] disabled:cursor-not-allowed disabled:opacity-45"
+            className="btn-shimmer inline-flex w-full lg:w-auto items-center justify-center gap-2.5 rounded-full bg-[#F7F4F0] px-8 py-4 text-xs font-extrabold uppercase tracking-[0.18em] text-[#181615] transition-all hover:bg-[#D5C7B2] disabled:cursor-not-allowed disabled:opacity-45"
           >
             <ShoppingBag className="h-4 w-4" />
             <span>

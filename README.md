@@ -1,28 +1,17 @@
-# HARUMI MODAS — Atelier D2C 3D & Provador Virtual IA
+# HARUMI MODAS — NEW DROP 3D • Street Luxe & Provador Virtual IA
 
-Aplicação web e-commerce D2C de moda feminina de luxo da marca **HARUMI MODAS**, integrada ao ecossistema **Portal LOJAS JP** (`lojajp.com`).
+Aplicação web e-commerce D2C de moda jovem urbana (*Zara / Bershka / Street Luxe vibes*) da marca **HARUMI MODAS**, integrada ao ecossistema **Portal LOJAS JP** (`lojajp.com`).
 
 ## Destaques Técnicos
-- **React + Vite + Tailwind CSS** com `base: './'` para total compatibilidade tanto na raiz (**Vercel**) quanto em subdomínio/subcaminho (`lojajp.com/harumimodas` / `harumimodas.lojajp.com` no **Netlify**).
-- **Intro Editorial 3D**: Monograma `HM`, partículas 3D de seda, pétalas e brilhos dourados + botão `SKIP INTRO`.
-- **Vitrine Hero em Arco 3D (`#colecao`)**: Three.js (`@react-three/fiber`) com `MeshPhysicalMaterial`, ondulação sutil de tecido, revelação radial dinâmica com ondas concêntricas, drag & momentum, clique direto, setas do teclado, roda horizontal e Autoplay.
-- **Inspeção 3D (`#detalhes`)**: Rotação 180°/360° exibindo frente, costas e etiqueta de cetim **HARUMI MODAS**, zoom de tecido, guia de tamanhos (`P, M, G, GG`), favoritos e botão **PROVAR EM MIM (IA)**.
-- **Provador Virtual com IA (`@google/genai`)**: Envio da foto da cliente + textura da peça ativa via Google Gemini com fallback editorial automático.
-- **Cloudinary (`jontqsrz`) + Texturas Procedurais**: Fallback automático em HTML5 Canvas de alta resolução (Frente e Verso) pronto para uso imediato; basta preencher `cloudinaryFrontId` e `cloudinaryBackId` em `src/data/products.js`.
-- **Shop the Drop (`#shop`) + Monte seu Look (`#look`) + Sacola WhatsApp**: Animação de peça voando para a sacola, desconto automático de **15% OFF** para combos de 3+ peças em Ienes (`¥`) e checkout direto via WhatsApp (`https://wa.me/818074558624`).
-
-## Variáveis de Ambiente (`.env`)
-```env
-VITE_GEMINI_API_KEY=sua_chave_gemini
-VITE_CLOUDINARY_CLOUD_NAME=jontqsrz
-```
-
-## Desenvolvimento & Build
-```bash
-npm install
-npm run dev
-npm run build
-```
+- **Escultura 3D Real Sem Planos Retangulares ([Garment3DModel.jsx](src/components/Garment3DModel.jsx))**: Cada uma das 5 peças é esculpida em 3D volumétrico (`BufferGeometry`, `ExtrudeGeometry`, `TubeGeometry`, `TorusGeometry`) com silhueta recortada, dobras de tecido, barbatanas, bolsos cargo 3D, mangas bufantes, recortes cut-out, drapeado lateral, iluminação de estúdio (`Lightformer` + `ContactShadows`), costura traseira e etiqueta interna **HARUMI MODAS**.
+- **Catálogo Street Luxe (5 Peças)**:
+  1. **Corset Cropped Acetinado** (`#D47A6A` | `¥5.900`)
+  2. **Calça Cargo Parachute** (`#D5C7B2` | `¥8.900`)
+  3. **Jaqueta Bomber Oversized** (`#8FA696` | `¥11.500`)
+  4. **Conjunto Ribbed Cut-Out** (`#E295A8` | `¥7.800`)
+  5. **Vestido Mini Drapeado Ônix** (`#7D7A85` | `¥6.900`)
+- **Provador Virtual Multimodal Real (`gemini-2.5-flash-image`)**: Captura automaticamente o snapshot PNG em Base64 da peça 3D ativa e envia junto com a foto da cliente via `@google/genai` com prompt fotográfico de troca de roupa. Sem simulação falsa: erros da API são exibidos com alerta claro de diagnóstico.
+- **Compatibilidade Universal**: `base: './'` no Vite + `vercel.json` + `netlify.toml` (subdomínio / `/harumimodas/*`).
 
 ---
 *Harumi Modas • Powered by Portal LOJAS JP (lojajp.com)*

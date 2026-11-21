@@ -9,7 +9,7 @@ function SilkPetalsAndGold({ phase }) {
 
   const petalData = useMemo(() => {
     const items = [];
-    const palette = ['#C88A75', '#D8C7B4', '#D9A7B0', '#C9B290', '#E8DDD1'];
+    const palette = ['#D47A6A', '#D5C7B2', '#8FA696', '#E295A8', '#7D7A85'];
     for (let i = 0; i < 48; i++) {
       const angle = (i / 48) * Math.PI * 2 + Math.random() * 0.6;
       const radius = 0.8 + Math.random() * 4.4;
@@ -20,8 +20,8 @@ function SilkPetalsAndGold({ phase }) {
         rotX: Math.random() * Math.PI,
         rotY: Math.random() * Math.PI,
         rotZ: Math.random() * Math.PI,
-        speed: 0.25 + Math.random() * 0.45,
-        scale: 0.08 + Math.random() * 0.16,
+        speed: 0.28 + Math.random() * 0.48,
+        scale: 0.08 + Math.random() * 0.15,
         color: palette[i % palette.length],
         dirX: Math.cos(angle) * (0.6 + Math.random() * 1.4),
         dirY: (Math.random() - 0.35) * 1.2
@@ -31,7 +31,7 @@ function SilkPetalsAndGold({ phase }) {
   }, []);
 
   const dustGeometry = useMemo(() => {
-    const count = 240;
+    const count = 220;
     const positions = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
       positions[i * 3] = (Math.random() - 0.5) * 10;
@@ -64,7 +64,7 @@ function SilkPetalsAndGold({ phase }) {
 
   useFrame((state, delta) => {
     const t = state.clock.getElapsedTime();
-    const expand = phase >= 1 ? 1.8 : 0.0;
+    const expand = phase >= 1 ? 1.85 : 0.0;
 
     if (petalsRef.current) {
       petalsRef.current.children.forEach((mesh, i) => {
@@ -100,25 +100,23 @@ function SilkPetalsAndGold({ phase }) {
   return (
     <>
       <ambientLight intensity={1.1} />
-      <directionalLight position={[4, 6, 5]} intensity={1.4} color="#FFF8EE" />
-      <pointLight position={[-4, -2, 3]} intensity={0.9} color="#E6C6A8" />
+      <directionalLight position={[4, 6, 5]} intensity={1.45} color="#FFF8EE" />
+      <pointLight position={[-4, -2, 3]} intensity={0.95} color="#E6C6A8" />
 
-      {/* Fios de seda dourados */}
       <group ref={threadsRef}>
         {silkCurves.map((geo, idx) => (
           <mesh key={idx} geometry={geo}>
             <meshPhysicalMaterial
-              color={idx % 2 === 0 ? '#C9B290' : '#D8C7B4'}
+              color={idx % 2 === 0 ? '#C9B290' : '#D47A6A'}
               metalness={0.55}
               roughness={0.22}
               transparent
-              opacity={phase >= 2 ? 0.1 : 0.48}
+              opacity={phase >= 2 ? 0.1 : 0.45}
             />
           </mesh>
         ))}
       </group>
 
-      {/* Pétalas sutis em 3D com profundidade */}
       <group ref={petalsRef}>
         {petalData.map((p, i) => (
           <mesh
@@ -130,17 +128,16 @@ function SilkPetalsAndGold({ phase }) {
             <sphereGeometry args={[1, 12, 10]} />
             <meshPhysicalMaterial
               color={p.color}
-              roughness={0.35}
-              metalness={0.12}
-              clearcoat={0.3}
+              roughness={0.32}
+              metalness={0.14}
+              clearcoat={0.32}
               transparent
-              opacity={0.74}
+              opacity={0.76}
             />
           </mesh>
         ))}
       </group>
 
-      {/* Brilhos dourados */}
       <points ref={goldDustRef} geometry={dustGeometry}>
         <pointsMaterial
           size={0.048}
@@ -156,7 +153,7 @@ function SilkPetalsAndGold({ phase }) {
 }
 
 export default function IntroOverlay({ onFinish }) {
-  const [phase, setPhase] = useState(0); // 0: monograma, 1: explosão suave de partículas, 2: saída
+  const [phase, setPhase] = useState(0);
   const finishedRef = useRef(false);
 
   const triggerExit = () => {
@@ -169,8 +166,8 @@ export default function IntroOverlay({ onFinish }) {
   };
 
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase(1), 1500);
-    const t2 = setTimeout(() => triggerExit(), 3100);
+    const t1 = setTimeout(() => setPhase(1), 1400);
+    const t2 = setTimeout(() => triggerExit(), 2950);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
@@ -183,7 +180,6 @@ export default function IntroOverlay({ onFinish }) {
         phase === 2 ? 'opacity-0 pointer-events-none scale-[1.03]' : 'opacity-100'
       }`}
     >
-      {/* Partículas 3D de seda, pétalas e brilhos dourados */}
       <div className="absolute inset-0 pointer-events-none">
         <Canvas
           camera={{ position: [0, 0, 5.8], fov: 44 }}
@@ -194,7 +190,6 @@ export default function IntroOverlay({ onFinish }) {
         </Canvas>
       </div>
 
-      {/* Vinheta suave de profundidade de campo */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -203,41 +198,37 @@ export default function IntroOverlay({ onFinish }) {
         }}
       />
 
-      {/* Botão discreto SKIP INTRO no canto superior direito */}
       <button
         type="button"
         onClick={triggerExit}
-        className="fixed top-6 right-6 z-20 rounded-full border border-[#181615]/15 bg-[#F7F4F0]/75 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.26em] text-[#181615]/75 backdrop-blur-md transition-all hover:border-[#181615]/40 hover:bg-[#181615] hover:text-[#F7F4F0]"
+        className="fixed top-6 right-6 z-20 rounded-full border border-[#181615]/15 bg-[#F7F4F0]/80 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.26em] text-[#181615]/75 backdrop-blur-md transition-all hover:border-[#181615]/40 hover:bg-[#181615] hover:text-[#F7F4F0]"
       >
         SKIP INTRO
       </button>
 
-      {/* Monograma e Logotipo Central */}
       <div
         className={`relative z-10 flex flex-col items-center text-center px-6 transition-all duration-1000 ${
           phase >= 1 ? 'scale-105 opacity-90' : 'scale-100 opacity-100'
         }`}
       >
-        {/* Monograma HM minimalista */}
-        <div className="relative mb-6 flex h-24 w-24 items-center justify-center rounded-full border border-[#C9B290]/75 bg-[#F7F4F0]/70 shadow-[0_14px_45px_-18px_rgba(24,22,21,0.18)] backdrop-blur-md">
-          <div className="absolute inset-2 rounded-full border border-[#181615]/10" />
-          <span className="font-serif text-3xl font-medium tracking-[0.18em] text-[#181615]">
+        <div className="relative mb-6 flex h-24 w-24 items-center justify-center rounded-full border border-[#181615]/20 bg-[#181615] shadow-[0_18px_45px_-16px_rgba(24,22,21,0.35)]">
+          <span className="font-display text-3xl font-extrabold tracking-[0.14em] text-[#F7F4F0]">
             HM
           </span>
         </div>
 
-        <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.42em] text-[#8C7554]">
-          Atelier D2C • Tokyo
+        <p className="mb-3 text-[11px] font-extrabold uppercase tracking-[0.42em] text-[#8C7554]">
+          NEW DROP • STREET LUXE TOKYO
         </p>
 
-        <h1 className="font-serif text-4xl sm:text-6xl md:text-7xl font-medium tracking-[0.22em] text-[#181615]">
+        <h1 className="font-display text-4xl sm:text-6xl md:text-7xl font-extrabold uppercase tracking-[0.14em] text-[#181615]">
           HARUMI MODAS
         </h1>
 
-        <div className="mt-6 flex items-center gap-4 text-[11px] uppercase tracking-[0.3em] text-[#181615]/50">
-          <span className="h-[1px] w-10 bg-[#C9B290]" />
-          <span>Portal LOJAS JP</span>
-          <span className="h-[1px] w-10 bg-[#C9B290]" />
+        <div className="mt-6 flex items-center gap-4 text-[11px] font-bold uppercase tracking-[0.3em] text-[#181615]/55">
+          <span className="h-[1px] w-10 bg-[#181615]/30" />
+          <span>FIT CHECK • PORTAL LOJAS JP</span>
+          <span className="h-[1px] w-10 bg-[#181615]/30" />
         </div>
       </div>
     </div>

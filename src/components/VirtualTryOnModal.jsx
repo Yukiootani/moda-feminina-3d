@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   X,
   Upload,
@@ -7,9 +7,9 @@ import {
   ShoppingBag,
   RefreshCw,
   CheckCircle2,
-  Info
+  AlertTriangle
 } from 'lucide-react';
-import { formatYen, getProductImageUrl } from '../data/products';
+import { formatYen, generateCleanGarmentPng } from '../data/products';
 import { generateVirtualTryOn } from '../services/geminiTryOn';
 
 export default function VirtualTryOnModal({
@@ -18,7 +18,8 @@ export default function VirtualTryOnModal({
   product,
   selectedSize,
   onSelectSize,
-  onAddAndOpenCart
+  onAddAndOpenCart,
+  garmentSnapshot
 }) {
   const fileInputRef = useRef(null);
   const [userPhoto, setUserPhoto] = useState(null);
@@ -27,9 +28,17 @@ export default function VirtualTryOnModal({
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Limpa resultado/erro quando troca a peça ativa
+  useEffect(() => {
+    setResult(null);
+    setErrorMsg('');
+  }, [product?.id]);
+
   if (!isOpen || !product) return null;
 
-  const garmentPreviewUrl = getProductImageUrl(product, 'front');
+  // Segunda imagem enviada à IA: snapshot real do modelo 3D ativo (ou PNG limpo da peça)
+  const garmentRefPreview =
+    garmentSnapshot || generateCleanGarmentPng(product, false);
 
   const handleFile = (file) => {
     if (!file) return;
@@ -58,11 +67,21 @@ export default function VirtualTryOnModal({
     if (!userPhoto || isLoading) return;
     setIsLoading(true);
     setErrorMsg('');
+    setResult(null);
+
     try {
-      const output = await generateVirtualTryOn(userPhoto, product);
+      const output = await generateVirtualTryOn(
+        userPhoto,
+        product,
+        garmentRefPreview
+      );
       setResult(output);
     } catch (err) {
-      setErrorMsg(err?.message || 'Não foi possível gerar a prévia agora.');
+      // Sem simulação falsa: exibe o diagnóstico real retornado pela API do Gemini
+      setErrorMsg(
+        err?.message ||
+          'Erro desconhecido ao chamar o modelo gemini-2.5-flash-image.'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -76,26 +95,24 @@ export default function VirtualTryOnModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
-      {/* Backdrop com desfoque editorial */}
       <div
         onClick={onClose}
-        className="absolute inset-0 bg-[#181615]/55 backdrop-blur-md transition-opacity"
+        className="absolute inset-0 bg-[#181615]/60 backdrop-blur-md transition-opacity"
       />
 
-      {/* Card Glassmorphism / Off-White */}
       <div className="relative z-10 max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-[2rem] border border-white/80 bg-[#F7F4F0]/95 p-5 sm:p-8 shadow-[0_36px_90px_-24px_rgba(0,0,0,0.45)] backdrop-blur-xl">
-        {/* Cabeçalho do Modal */}
+        {/* Cabeçalho */}
         <div className="flex items-start justify-between gap-4 border-b border-[#181615]/10 pb-5">
           <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#181615] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.26em] text-[#D8C7B4]">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#181615] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.26em] text-[#D8C7B4]">
               <Sparkles className="h-3 w-3" />
-              Provador Virtual IA • Gemini
+              FIT CHECK IA • gemini-2.5-flash-image
             </span>
-            <h3 className="mt-2 font-serif text-2xl sm:text-3xl font-semibold text-[#181615]">
+            <h3 className="mt-2 font-display text-2xl sm:text-3xl font-extrabold uppercase tracking-[-0.02em] text-[#181615]">
               {product.name}
             </h3>
             <p className="text-xs sm:text-sm text-[#181615]/65">
-              Veja o caimento real da peça preservando seu rosto, cabelo, pose e iluminação.
+              Envio multimodal real: sua foto + snapshot PNG da peça 3D para troca fiel da roupa mantendo seu rosto, pose e fundo.
             </p>
           </div>
 
@@ -103,26 +120,46 @@ export default function VirtualTryOnModal({
             type="button"
             onClick={onClose}
             aria-label="Fechar provador virtual"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#181615]/15 bg-white/80 text-[#181615] transition-all hover:bg-[#181615] hover:text-[#F7F4F0]"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#181615]/15 bg-white/85 text-[#181615] transition-all hover:bg-[#181615] hover:text-[#F7F4F0]"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Estado 1: Upload + Preview da Foto e Peça Ativa (antes de gerar resultado) */}
+        {/* Alerta claro de diagnóstico em caso de erro real da API Gemini */}
+        {errorMsg && (
+          <div className="mt-5 flex items-start gap-3 rounded-2xl border border-red-300 bg-red-50 p-4 text-left text-xs text-red-900 shadow-sm">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+            <div className="space-y-1">
+              <p className="font-bold uppercase tracking-[0.14em] text-red-700">
+                Falha na Geração pela API do Gemini
+              </p>
+              <p className="font-mono text-[11px] leading-relaxed break-words text-red-900/90">
+                {errorMsg}
+              </p>
+              <p className="text-[11px] text-red-800/80">
+                Dica de diagnóstico: verifique se a API <strong>Generative Language API (Gemini)</strong> e o modelo{' '}
+                <code>gemini-2.5-flash-image</code> estão habilitados com faturamento/cota ativa na chave configurada em{' '}
+                <code>VITE_GEMINI_API_KEY</code>.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Fluxo Principal */}
         {!result ? (
           <div className="mt-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
-            {/* Área de Upload: "1. Envie sua Foto" */}
+            {/* 1. Upload da Foto da Cliente */}
             <div className="md:col-span-7 flex flex-col">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#181615]">
+                <span className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#181615]">
                   1. Envie sua Foto
                 </span>
                 {userPhoto && (
                   <button
                     type="button"
                     onClick={handleReset}
-                    className="text-xs font-medium text-[#8C7554] underline hover:text-[#181615]"
+                    className="text-xs font-semibold text-[#8C7554] underline hover:text-[#181615]"
                   >
                     Trocar foto
                   </button>
@@ -137,12 +174,12 @@ export default function VirtualTryOnModal({
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={handleDrop}
                 onClick={() => !userPhoto && fileInputRef.current?.click()}
-                className={`relative flex flex-1 min-h-[320px] flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed transition-all ${
+                className={`relative flex flex-1 min-h-[330px] flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed transition-all ${
                   isDragging
-                    ? 'border-[#C88A75] bg-[#C88A75]/10'
+                    ? 'border-[#D47A6A] bg-[#D47A6A]/10'
                     : userPhoto
                     ? 'border-[#181615]/15 bg-white'
-                    : 'cursor-pointer border-[#181615]/20 bg-white/65 hover:border-[#181615]/45 hover:bg-white'
+                    : 'cursor-pointer border-[#181615]/20 bg-white/70 hover:border-[#181615]/50 hover:bg-white'
                 }`}
               >
                 <input
@@ -158,21 +195,20 @@ export default function VirtualTryOnModal({
                     <img
                       src={userPhoto}
                       alt="Sua foto enviada"
-                      className="h-full max-h-[380px] w-full object-contain bg-[#EFECE7]"
+                      className="h-full max-h-[390px] w-full object-contain bg-[#EFECE7]"
                     />
 
-                    {/* Overlay de carregamento Gemini IA */}
                     {isLoading && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#181615]/75 px-6 text-center text-[#F7F4F0] backdrop-blur-sm">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#181615]/78 px-6 text-center text-[#F7F4F0] backdrop-blur-sm">
                         <div className="relative mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[#D8C7B4]/50">
                           <Sparkles className="h-7 w-7 animate-pulse text-[#D8C7B4]" />
                           <span className="absolute inset-0 rounded-full border-2 border-t-[#D8C7B4] border-transparent animate-spin" />
                         </div>
-                        <p className="font-serif text-xl font-medium">
+                        <p className="font-display text-lg font-bold uppercase tracking-[0.06em]">
                           A IA do Gemini está gerando sua prévia...
                         </p>
-                        <p className="mt-1.5 text-xs text-[#F7F4F0]/70">
-                          Ajustando caimento de {product.fabricTitle} à sua silhueta e luz natural
+                        <p className="mt-1.5 text-xs text-[#F7F4F0]/75">
+                          Enviando sua foto + snapshot 3D de {product.name} para gemini-2.5-flash-image
                         </p>
                       </div>
                     )}
@@ -182,13 +218,12 @@ export default function VirtualTryOnModal({
                     <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#181615] text-[#F7F4F0] shadow-md">
                       <Upload className="h-6 w-6" />
                     </div>
-                    <p className="font-serif text-xl font-semibold text-[#181615]">
-                      Arraste sua foto aqui ou clique para escolher
+                    <p className="font-display text-lg font-extrabold uppercase text-[#181615]">
+                      Arraste sua foto ou clique para escolher
                     </p>
                     <p className="mt-2 text-xs leading-relaxed text-[#181615]/60">
-                      Prefira uma foto de frente, bem iluminada (meio corpo ou corpo inteiro).
-                      <br />
-                      Sua imagem é usada exclusivamente para gerar a prévia.
+                      Foto de frente, boa iluminação (meio corpo ou corpo inteiro) garante
+                      o melhor caimento no provador virtual.
                     </p>
                     <button
                       type="button"
@@ -196,7 +231,7 @@ export default function VirtualTryOnModal({
                         e.stopPropagation();
                         fileInputRef.current?.click();
                       }}
-                      className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#181615]/20 bg-[#F7F4F0] px-5 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#181615] hover:bg-[#181615] hover:text-[#F7F4F0]"
+                      className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#181615]/20 bg-[#F7F4F0] px-5 py-2 text-xs font-bold uppercase tracking-[0.16em] text-[#181615] hover:bg-[#181615] hover:text-[#F7F4F0]"
                     >
                       <Camera className="h-4 w-4" />
                       <span>Selecionar Foto</span>
@@ -204,39 +239,43 @@ export default function VirtualTryOnModal({
                   </div>
                 )}
               </div>
-
-              {errorMsg && (
-                <p className="mt-2 text-xs font-medium text-red-700">{errorMsg}</p>
-              )}
             </div>
 
-            {/* Coluna Direita: Peça Selecionada + Botão Gerar */}
-            <div className="md:col-span-5 flex flex-col justify-between rounded-2xl border border-[#181615]/10 bg-white/75 p-5">
+            {/* 2. Snapshot PNG da Peça 3D Ativa + Botão Gerar */}
+            <div className="md:col-span-5 flex flex-col justify-between rounded-2xl border border-[#181615]/10 bg-white/80 p-5">
               <div>
-                <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#8C7554]">
-                  2. Peça Selecionada
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#8C7554]">
+                    2. Referência 3D (PNG)
+                  </span>
+                  <span className="rounded-full bg-[#181615]/8 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#181615]/70">
+                    Imagem #2
+                  </span>
+                </div>
 
-                <div className="mt-3 overflow-hidden rounded-xl border border-[#181615]/10 bg-[#F7F4F0]">
+                <div
+                  className="mt-3 overflow-hidden rounded-xl border border-[#181615]/10"
+                  style={{ backgroundColor: product.colorSoft }}
+                >
                   <img
-                    src={garmentPreviewUrl}
-                    alt={product.name}
-                    className="h-48 w-full object-contain p-2"
+                    src={garmentRefPreview}
+                    alt={`Referência 3D de ${product.name}`}
+                    className="h-52 w-full object-contain p-2"
                   />
                 </div>
 
                 <div className="mt-3">
-                  <h4 className="font-serif text-lg font-semibold text-[#181615]">
+                  <h4 className="font-display text-base font-extrabold uppercase text-[#181615]">
                     {product.name}
                   </h4>
                   <p className="text-xs text-[#181615]/60">{product.fabricTitle}</p>
-                  <p className="mt-1 font-semibold text-[#181615]">
+                  <p className="mt-1 font-bold text-[#181615]">
                     {formatYen(product.price)}
                   </p>
                 </div>
 
                 <div className="mt-4">
-                  <span className="block text-[10px] font-semibold uppercase tracking-[0.22em] text-[#181615]/60 mb-1.5">
+                  <span className="block text-[10px] font-bold uppercase tracking-[0.22em] text-[#181615]/60 mb-1.5">
                     Tamanho desejado
                   </span>
                   <div className="grid grid-cols-4 gap-1.5">
@@ -245,7 +284,7 @@ export default function VirtualTryOnModal({
                         key={sz}
                         type="button"
                         onClick={() => onSelectSize(sz)}
-                        className={`rounded-lg py-1.5 text-xs font-semibold transition-all ${
+                        className={`rounded-lg py-1.5 text-xs font-bold transition-all ${
                           selectedSize === sz
                             ? 'bg-[#181615] text-[#F7F4F0]'
                             : 'border border-[#181615]/15 bg-white text-[#181615] hover:border-[#181615]'
@@ -262,36 +301,31 @@ export default function VirtualTryOnModal({
                 type="button"
                 disabled={!userPhoto || isLoading}
                 onClick={handleGenerate}
-                className="btn-shimmer mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[#181615] px-5 py-3.5 text-xs font-bold uppercase tracking-[0.18em] text-[#F7F4F0] shadow-lg transition-all hover:bg-[#2F2A27] disabled:cursor-not-allowed disabled:opacity-45"
+                className="btn-shimmer mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[#181615] px-5 py-3.5 text-xs font-extrabold uppercase tracking-[0.16em] text-[#F7F4F0] shadow-lg transition-all hover:bg-[#2F2A27] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <Sparkles className="h-4 w-4 text-[#D8C7B4]" />
                 <span>
-                  {isLoading ? 'Gerando Prévia...' : 'Gerar Prévia com IA Gemini'}
+                  {isLoading ? 'Processando no Gemini...' : 'Gerar Prévia com IA Gemini'}
                 </span>
               </button>
             </div>
           </div>
         ) : (
-          /* Estado 2: Comparação Lado a Lado (Foto Original vs Prévia Gerada por IA) */
+          /* Resultado Multimodal Real: Lado a Lado */
           <div className="mt-6">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#181615]/10 bg-white/80 px-4 py-2.5 text-xs text-[#181615]/75">
-              <span className="inline-flex items-center gap-2 font-medium">
-                {result.mode === 'gemini' ? (
-                  <CheckCircle2 className="h-4 w-4 text-[#4B7A5A]" />
-                ) : (
-                  <Info className="h-4 w-4 text-[#8C7554]" />
-                )}
-                {result.notice}
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-2.5 text-xs text-emerald-950">
+              <span className="inline-flex items-center gap-2 font-semibold">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                Prévia real gerada via Google Gemini ({result.model})
               </span>
-              <span className="font-semibold text-[#181615]">
+              <span className="font-bold text-[#181615]">
                 Tam. {selectedSize} • {formatYen(product.price)}
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {/* Original */}
               <div className="overflow-hidden rounded-2xl border border-[#181615]/10 bg-white">
-                <div className="border-b border-[#181615]/8 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#181615]/60">
+                <div className="border-b border-[#181615]/8 px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.2em] text-[#181615]/60">
                   Foto Original
                 </div>
                 <div className="aspect-[3/4] w-full bg-[#EFECE7]">
@@ -303,9 +337,8 @@ export default function VirtualTryOnModal({
                 </div>
               </div>
 
-              {/* Prévia Gerada por IA */}
-              <div className="overflow-hidden rounded-2xl border-2 border-[#C9B290] bg-white shadow-lg">
-                <div className="flex items-center justify-between border-b border-[#C9B290]/35 bg-[#181615] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#F7F4F0]">
+              <div className="overflow-hidden rounded-2xl border-2 border-[#181615] bg-white shadow-xl">
+                <div className="flex items-center justify-between border-b border-[#181615] bg-[#181615] px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.2em] text-[#F7F4F0]">
                   <span>Prévia Gerada por IA</span>
                   <Sparkles className="h-3.5 w-3.5 text-[#D8C7B4]" />
                 </div>
@@ -319,12 +352,11 @@ export default function VirtualTryOnModal({
               </div>
             </div>
 
-            {/* Ações Finais: "Amei, Adicionar ao Carrinho" e "Tentar outra foto" */}
             <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#181615]/10 pt-5">
               <button
                 type="button"
                 onClick={handleReset}
-                className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#181615]/70 underline underline-offset-4 transition-colors hover:text-[#181615]"
+                className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-[#181615]/70 underline underline-offset-4 transition-colors hover:text-[#181615]"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
                 <span>Tentar outra foto</span>
@@ -336,7 +368,7 @@ export default function VirtualTryOnModal({
                   onAddAndOpenCart(product, selectedSize);
                   onClose();
                 }}
-                className="btn-shimmer inline-flex w-full sm:w-auto items-center justify-center gap-2.5 rounded-full bg-[#181615] px-8 py-4 text-xs font-bold uppercase tracking-[0.18em] text-[#F7F4F0] shadow-xl transition-all hover:bg-[#2F2A27]"
+                className="btn-shimmer inline-flex w-full sm:w-auto items-center justify-center gap-2.5 rounded-full bg-[#181615] px-8 py-4 text-xs font-extrabold uppercase tracking-[0.18em] text-[#F7F4F0] shadow-xl transition-all hover:bg-[#2F2A27]"
               >
                 <ShoppingBag className="h-4 w-4 text-[#D8C7B4]" />
                 <span>Amei, Adicionar ao Carrinho</span>

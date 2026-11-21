@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Sparkles, X, MessageCircle, Check } from 'lucide-react';
 import { PRODUCTS, getProductImageUrl } from './data/products';
 import IntroOverlay from './components/IntroOverlay';
@@ -20,13 +20,29 @@ export default function App() {
   const [cartItems, setCartItems] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [tryOnOpen, setTryOnOpen] = useState(false);
+  const [garmentSnapshot, setGarmentSnapshot] = useState(null);
   const [newsOpen, setNewsOpen] = useState(false);
   const [flyItems, setFlyItems] = useState([]);
   const [bagPulse, setBagPulse] = useState(false);
   const [toast, setToast] = useState(null);
 
+  const snapshotCaptureRef = useRef(null);
+
   const activeProduct = PRODUCTS[activeIndex];
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  const registerSnapshotCapture = useCallback((fn) => {
+    snapshotCaptureRef.current = fn;
+  }, []);
+
+  const openTryOnModal = useCallback(() => {
+    let captured = null;
+    if (typeof snapshotCaptureRef.current === 'function') {
+      captured = snapshotCaptureRef.current();
+    }
+    setGarmentSnapshot(captured);
+    setTryOnOpen(true);
+  }, []);
 
   const showToast = useCallback((message) => {
     setToast(message);
@@ -164,10 +180,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F7F4F0] text-[#181615]">
-      {/* Sequência de Introdução Editorial */}
       {showIntro && <IntroOverlay onFinish={() => setShowIntro(false)} />}
 
-      {/* Navbar Flutuante Glassmorphism */}
       <Navbar
         cartCount={cartCount}
         onOpenCart={() => setCartOpen(true)}
@@ -175,16 +189,13 @@ export default function App() {
         bagPulse={bagPulse}
       />
 
-      {/* Conteúdo Principal */}
       <main>
-        {/* Seção 1 - Hero Carrossel em Arco 3D (#colecao) */}
         <HeroCarousel3D
           activeIndex={activeIndex}
           onChangeIndex={setActiveIndex}
-          onOpenTryOn={() => setTryOnOpen(true)}
+          onOpenTryOn={openTryOnModal}
         />
 
-        {/* Seção 2 - Inspeção 3D + Provador Virtual com IA (#detalhes) */}
         <InspectionSection
           product={activeProduct}
           isFavorite={favorites.includes(activeProduct.id)}
@@ -192,27 +203,24 @@ export default function App() {
           selectedSize={selectedSize}
           onSelectSize={setSelectedSize}
           onAddToCart={(prod, sz) => addToCart(prod, sz, true)}
-          onOpenTryOn={() => setTryOnOpen(true)}
+          onOpenTryOn={openTryOnModal}
+          onRegisterSnapshot={registerSnapshotCapture}
         />
 
-        {/* Seção 3 - Vitrine Shop (#shop) */}
         <ShopSection
           activeIndex={activeIndex}
           onInspectProduct={handleInspectFromShop}
           onAddWithFly={handleAddWithFly}
         />
 
-        {/* Seção 4 - Montador de Look 3 Peças (#look) */}
         <LookBuilder
           activeIndex={activeIndex}
           onAddLookCombo={handleAddLookCombo}
         />
       </main>
 
-      {/* Rodapé Minimalista */}
       <Footer />
 
-      {/* Modal do Provador Virtual (Virtual Try-On via Gemini API) */}
       <VirtualTryOnModal
         isOpen={tryOnOpen}
         onClose={() => setTryOnOpen(false)}
@@ -220,9 +228,9 @@ export default function App() {
         selectedSize={selectedSize}
         onSelectSize={setSelectedSize}
         onAddAndOpenCart={(prod, sz) => addToCart(prod, sz, true)}
+        garmentSnapshot={garmentSnapshot}
       />
 
-      {/* Sacola Lateral (Drawer) */}
       <CartDrawer
         isOpen={cartOpen}
         onClose={() => setCartOpen(false)}
@@ -232,10 +240,8 @@ export default function App() {
         onClearCart={() => setCartItems([])}
       />
 
-      {/* Animação de peça voando até a sacola */}
       <FlyToBagLayer flyItems={flyItems} />
 
-      {/* Modal Editorial Novidades / Drop Privado */}
       {newsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
@@ -252,38 +258,37 @@ export default function App() {
               <X className="h-4 w-4" />
             </button>
 
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#181615] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.26em] text-[#D8C7B4]">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#181615] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.26em] text-[#D8C7B4]">
               <Sparkles className="h-3 w-3" />
-              Drop Privado • Harumi Modas
+              NEW DROP • STREET LUXE VIP
             </span>
 
-            <h3 className="mt-4 font-serif text-3xl font-semibold text-[#181615]">
+            <h3 className="mt-4 font-display text-3xl font-extrabold uppercase text-[#181615]">
               Novidades & Acesso Antecipado
             </h3>
             <p className="mt-2 text-sm leading-relaxed text-[#181615]/70">
-              Receba em primeira mão os lançamentos numerados de seda, linho belga e
-              cashmere direto do nosso atelier em Tóquio, além de atendimento
-              personalizado pelo WhatsApp do Portal LOJAS JP.
+              Receba em primeira mão nossos drops limitados de streetwear, corsets,
+              bombers oversized e vestidos night-out direto do Portal LOJAS JP.
             </p>
 
             <div className="mt-6 space-y-2.5 rounded-2xl border border-[#181615]/10 bg-white/80 p-4 text-xs text-[#181615]/80">
               <div className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-[#617869]" />
-                <span>15% OFF automático na montagem de looks com 3+ peças</span>
+                <Check className="h-4 w-4 text-[#516858]" />
+                <span>15% OFF automático no combo de 3+ peças</span>
               </div>
               <div className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-[#617869]" />
-                <span>Provador Virtual exclusivo com IA Google Gemini</span>
+                <Check className="h-4 w-4 text-[#516858]" />
+                <span>Provador Virtual Real com IA Gemini 2.5 Flash Image</span>
               </div>
               <div className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-[#617869]" />
-                <span>Envio expresso para todo o Japão via Portal LOJAS JP</span>
+                <Check className="h-4 w-4 text-[#516858]" />
+                <span>Envio rápido para todo o Japão via Portal LOJAS JP</span>
               </div>
             </div>
 
             <div className="mt-6 flex flex-col sm:flex-row gap-3">
               <a
-                href="https://wa.me/818074558624?text=Ol%C3%A1%20HARUMI%20MODAS!%20Quero%20receber%20as%20novidades%20e%20acesso%20antecipado%20dos%20pr%C3%B3ximos%20drops."
+                href="https://wa.me/818074558624?text=Ol%C3%A1%20HARUMI%20MODAS!%20Quero%20receber%20as%20novidades%20do%20NEW%20DROP%20Street%20Luxe."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#181615] px-5 py-3.5 text-xs font-bold uppercase tracking-[0.16em] text-[#F7F4F0] hover:bg-[#2F2A27]"
@@ -301,14 +306,13 @@ export default function App() {
                 }}
                 className="rounded-full border border-[#181615]/20 bg-white px-5 py-3.5 text-xs font-bold uppercase tracking-[0.16em] text-[#181615] hover:bg-[#EFEAE2]"
               >
-                Ver Drop 01
+                Ver Drop
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Toast Discreto */}
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 rounded-full border border-[#C9B290]/45 bg-[#181615] px-5 py-2.5 text-xs font-medium tracking-[0.06em] text-[#F7F4F0] shadow-2xl">
           {toast}
