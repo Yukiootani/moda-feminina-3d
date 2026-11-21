@@ -1,8 +1,8 @@
 /**
- * Converte dataURL ou URL local/CORS (`/roupas/*.jpg` ou Cloudinary) para { mimeType, base64 }
- * otimizando fotos grandes da câmera para até 1024px JPEG para inferência rápida no IDM-VTON / CatVTON.
+ * Comprime fotos gigantes de smartphone (ex: 12MP do iPhone) para max 1024px JPEG
+ * mantendo nitidez máxima e upload instantâneo para o IDM-VTON / CatVTON.
  */
-async function compressDataUrlIfLarge(dataUrl, maxDim = 1024) {
+async function compressUserPhoto(dataUrl, maxDim = 1024) {
   if (typeof document === 'undefined' || !dataUrl.startsWith('data:image/')) {
     return dataUrl;
   }
@@ -27,40 +27,11 @@ async function compressDataUrlIfLarge(dataUrl, maxDim = 1024) {
   });
 }
 
-async function toInlineImageData(sourceUrl) {
-  if (!sourceUrl) {
-    throw new Error('Imagem de entrada vazia.');
-  }
-
-  let workingUrl = sourceUrl;
-
-  if (!workingUrl.startsWith('data:')) {
-    const isExternal = /^https?:\/\//i.test(workingUrl);
-    const res = await fetch(
-      workingUrl,
-      isExternal ? { mode: 'cors' } : undefined
-    );
-    if (!res.ok) {
-      throw new Error(
-        `Falha ao carregar imagem do look selecionado (HTTP ${res.status}).`
-      );
-    }
-    const blob = await res.blob();
-    workingUrl = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(String(reader.result || ''));
-      reader.onerror = () =>
-        reject(new Error('Erro ao converter imagem da peça para Base64.'));
-      reader.readAsDataURL(blob);
-    });
-  }
-
-  const optimizedUrl = await compressDataUrlIfLarge(workingUrl, 1024);
-  const commaIdx = optimizedUrl.indexOf(',');
-  const header = optimizedUrl.slice(0, commaIdx);
-  const base64 = optimizedUrl.slice(commaIdx + 1);
+function splitDataUrl(dataUrl) {
+  const commaIdx = dataUrl.indexOf(',');
+  const header = dataUrl.slice(0, commaIdx);
+  const base64 = dataUrl.slice(commaIdx + 1);
   const mimeMatch = header.match(/data:(.*?);base64/);
-
   return {
     mimeType: mimeMatch ? mimeMatch[1] : 'image/jpeg',
     base64
@@ -68,18 +39,22 @@ async function toInlineImageData(sourceUrl) {
 }
 
 /**
- * Provador Virtual Gratuito via `/api/tryon` (Hugging Face Spaces: IDM-VTON -> fallback CatVTON).
+ * Provador Virtual via `/api/tryon` (Hugging Face IDM-VTON -> fallback CatVTON).
+ * Envia o caminho exato da peça isolada (`/roupas/...` ou URL Cloudinary) para o servidor
+ * ler o arquivo original direto do disco/CDN sem nunca enviar captura de tela.
  */
 export async function generateVirtualTryOn(
   userPhotoDataUrl,
   product,
-  garmentImageUrl,
+  resolvedGarmentUrl,
   overrideHfToken = ''
 ) {
-  const [userImg, garmentImg] = await Promise.all([
-    toInlineImageData(userPhotoDataUrl),
-    toInlineImageData(garmentImageUrl)
-  ]);
+  const compressedUser = await compressUserPhoto(userPhotoDataUrl, 1024);
+  const userImg = splitDataUrl(compressedUser);
+
+  const isLocalPath =
+    typeof resolvedGarmentUrl === 'string' &&
+    resolvedGarmentUrl.startsWith('/roupas/');
 
   const response = await fetch('/api/tryon', {
     method: 'POST',
@@ -87,8 +62,9 @@ export async function generateVirtualTryOn(
     body: JSON.stringify({
       userImageBase64: userImg.base64,
       userMimeType: userImg.mimeType,
-      garmentImageBase64: garmentImg.base64,
-      garmentMimeType: garmentImg.mimeType,
+      garmentPath: isLocalPath ? resolvedGarmentUrl : product.defaultFrontImage,
+      garmentUrl: !isLocalPath ? resolvedGarmentUrl : '',
+      garmentDes: product.garmentDes || product.description,
       productName: product.name,
       productDescription: product.description,
       clothType: product.clothType || 'overall',

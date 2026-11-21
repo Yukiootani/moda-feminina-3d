@@ -3,13 +3,12 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 /**
- * AlphaMap suave que esfuma as bordas do estúdio fotográfico para integrar
- * a modelo de corpo inteiro diretamente ao palco 3D sem parecer cartão chapado.
+ * AlphaMap arredondado elegante (proporção 3:4) — pré-calculado 1 única vez.
  */
-let sharedStageMask = null;
-function getEditorialStageAlphaMap() {
-  if (sharedStageMask || typeof document === 'undefined') {
-    return sharedStageMask;
+let sharedRoundedMask = null;
+function getRoundedPanelAlphaMap() {
+  if (sharedRoundedMask || typeof document === 'undefined') {
+    return sharedRoundedMask;
   }
   const W = 512;
   const H = 682;
@@ -21,75 +20,70 @@ function getEditorialStageAlphaMap() {
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, W, H);
 
-  ctx.save();
-  ctx.filter = 'blur(18px)';
   ctx.fillStyle = '#FFFFFF';
   ctx.beginPath();
-  ctx.roundRect(24, 18, W - 48, H - 36, 92);
+  ctx.roundRect(6, 6, W - 12, H - 12, 54);
   ctx.fill();
-  ctx.restore();
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.needsUpdate = true;
-  sharedStageMask = tex;
+  sharedRoundedMask = tex;
   return tex;
 }
 
 /**
- * Gera mapa de relevo/profundidade 3D (displacement + bump) a partir da própria
- * fotografia da modelo para criar relevo volumétrico real sob a luz de estúdio.
+ * Sombra circular estática suave (Blob Shadow) — zero custo de shadow-map em GPU mobile.
  */
-function buildReliefTexture(img) {
-  const W = 256;
-  const H = 340;
-  const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(img, 0, 0, W, H);
-
-  const imgData = ctx.getImageData(0, 0, W, H);
-  const d = imgData.data;
-
-  // Amostra cor de fundo nos cantos superiores para separar a silhueta da modelo em relevo 3D
-  const bgR = (d[0] + d[(W - 1) * 4]) / 2;
-  const bgG = (d[1] + d[(W - 1) * 4 + 1]) / 2;
-  const bgB = (d[2] + d[(W - 1) * 4 + 2]) / 2;
-
-  for (let y = 0; y < H; y++) {
-    const ny = y / H;
-    for (let x = 0; x < W; x++) {
-      const idx = (y * W + x) * 4;
-      const nx = (x / W - 0.5) * 2;
-      const diff =
-        Math.abs(d[idx] - bgR) +
-        Math.abs(d[idx + 1] - bgG) +
-        Math.abs(d[idx + 2] - bgB);
-      // Figura da modelo destacada do fundo + curvatura central suave
-      const silhouetteLift = Math.min(1, diff / 95);
-      const centerCurve = Math.max(0, 1 - nx * nx * 1.35) * (0.65 + 0.35 * (1 - ny));
-      const depthVal = Math.round(
-        Math.min(255, Math.max(0, (silhouetteLift * 0.72 + centerCurve * 0.28) * 255))
-      );
-      d[idx] = depthVal;
-      d[idx + 1] = depthVal;
-      d[idx + 2] = depthVal;
-      d[idx + 3] = 255;
-    }
+let sharedBlobShadowTex = null;
+function getBlobShadowTexture() {
+  if (sharedBlobShadowTex || typeof document === 'undefined') {
+    return sharedBlobShadowTex;
   }
-  ctx.putImageData(imgData, 0, 0);
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
 
-  const reliefTex = new THREE.CanvasTexture(canvas);
-  reliefTex.needsUpdate = true;
-  return reliefTex;
+  const grad = ctx.createRadialGradient(
+    size / 2,
+    size / 2,
+    size * 0.04,
+    size / 2,
+    size / 2,
+    size * 0.48
+  );
+  grad.addColorStop(0, 'rgba(24, 22, 21, 0.34)');
+  grad.addColorStop(0.55, 'rgba(24, 22, 21, 0.14)');
+  grad.addColorStop(1, 'rgba(24, 22, 21, 0.0)');
+
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  sharedBlobShadowTex = tex;
+  return tex;
 }
 
-function useEditorialModelTextures(url) {
-  const [bundle, setBundle] = useState({ map: null, relief: null });
+/**
+ * Cache leve de texturas carregadas para evitar re-download no mobile ao girar o carrossel.
+ */
+const loadedTextureCache = new Map();
+
+function useCachedGarmentTexture(url) {
+  const [texture, setTexture] = useState(() =>
+    url && loadedTextureCache.has(url) ? loadedTextureCache.get(url) : null
+  );
 
   useEffect(() => {
     if (!url) {
-      setBundle({ map: null, relief: null });
+      setTexture(null);
+      return;
+    }
+
+    if (loadedTextureCache.has(url)) {
+      setTexture(loadedTextureCache.get(url));
       return;
     }
 
@@ -101,178 +95,164 @@ function useEditorialModelTextures(url) {
 
     img.onload = () => {
       if (cancelled) return;
-      const map = new THREE.Texture(img);
-      map.colorSpace = THREE.SRGBColorSpace;
-      map.anisotropy = 8;
-      map.minFilter = THREE.LinearMipmapLinearFilter;
-      map.magFilter = THREE.LinearFilter;
-      map.generateMipmaps = true;
-      map.needsUpdate = true;
+      const tex = new THREE.Texture(img);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 4;
+      tex.minFilter = THREE.LinearMipmapLinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      tex.generateMipmaps = true;
+      tex.needsUpdate = true;
 
-      let relief = null;
-      try {
-        relief = buildReliefTexture(img);
-      } catch {
-        relief = null;
-      }
-
-      setBundle((prev) => {
-        if (prev.map && prev.map !== map) prev.map.dispose();
-        if (prev.relief && prev.relief !== relief) prev.relief.dispose();
-        return { map, relief };
-      });
+      loadedTextureCache.set(url, tex);
+      setTexture(tex);
     };
 
     img.onerror = () => {
       if (!cancelled) {
-        console.warn('[Harumi Modas 3D] Erro ao carregar imagem da modelo:', url);
+        console.warn('[Harumi Modas 3D] Erro ao carregar imagem:', url);
       }
     };
 
     img.src = url;
-
     return () => {
       cancelled = true;
     };
   }, [url]);
 
-  return bundle;
+  return texture;
 }
 
 /**
- * Modelo Real de Corpo Inteiro em Relevo 3D sobre Pedestal Circular Luminoso
- * - Relevo volumétrico real (displacementMap + bumpMap extraídos da silhueta)
- * - ZERO caixa cinza de etiqueta / ZERO quadrado branco
- * - Pedestal circular arquitetônico com anel de luz champanhe na base
+ * Cria geometria 3D curva elegante (proporção 3:4) pré-esculpida uma única vez
+ * — zero recomputação de vértices/normais por frame (60fps garantidos no iPhone/Safari).
+ */
+function buildCurvedPanelGeometry(width, height, curveDepth = 0.14) {
+  const geo = new THREE.PlaneGeometry(width, height, 18, 12);
+  const pos = geo.attributes.position;
+  const halfW = width / 2;
+
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const nx = x / halfW; // -1 a +1
+    const z = (1 - nx * nx) * curveDepth - curveDepth * 0.5;
+    pos.setZ(i, z);
+  }
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  return geo;
+}
+
+/**
+ * Painel 3D Curvo Premium de Peça Isolada (Ghost Mannequin / Packshot)
+ * - Ultra leve para 60fps no iPhone/Android
+ * - Bordas arredondadas suaves, acabamento acetinado (`MeshPhysicalMaterial` leve)
+ * - Sombra circular estática (blob shadow) suave sob a peça
  */
 export default function EditorialGarment3D({
   frontUrl,
   backUrl,
-  accentColor = '#D47A6A',
-  width = 2.45,
-  height = 3.26,
-  showPedestal = true,
-  isHighlighted = true,
-  parallax = { x: 0, y: 0 }
+  accentColor = '#F3DFDA',
+  width = 2.34,
+  height = 3.12,
+  showBlobShadow = true,
+  parallax = { x: 0, y: 0 },
+  floatOffset = 0
 }) {
-  const figureRef = useRef();
+  const cardRef = useRef();
   const frontMatRef = useRef();
   const backMatRef = useRef();
 
-  const frontBundle = useEditorialModelTextures(frontUrl);
-  const backBundle = useEditorialModelTextures(backUrl || frontUrl);
-  const alphaMap = useMemo(() => getEditorialStageAlphaMap(), []);
+  const frontTex = useCachedGarmentTexture(frontUrl);
+  const backTex = useCachedGarmentTexture(backUrl || frontUrl);
+  const alphaMap = useMemo(() => getRoundedPanelAlphaMap(), []);
+  const blobShadowTex = useMemo(() => getBlobShadowTexture(), []);
 
-  useEffect(() => {
-    if (frontMatRef.current) frontMatRef.current.needsUpdate = true;
-  }, [frontBundle.map, frontBundle.relief]);
-
-  useEffect(() => {
-    if (backMatRef.current) backMatRef.current.needsUpdate = true;
-  }, [backBundle.map, backBundle.relief]);
-
-  // Malha de alta subdivisão para o relevo 3D real da silhueta da modelo
   const geometry = useMemo(
-    () => new THREE.PlaneGeometry(width, height, 48, 64),
+    () => buildCurvedPanelGeometry(width, height, 0.14),
     [width, height]
   );
 
-  useFrame((state, delta) => {
-    const t = state.clock.getElapsedTime();
-    if (figureRef.current) {
-      const targetRotX = THREE.MathUtils.clamp((parallax?.y || 0) * -0.06, -0.1, 0.1);
-      const targetShiftX = THREE.MathUtils.clamp((parallax?.x || 0) * 0.06, -0.1, 0.1);
-      figureRef.current.rotation.x = THREE.MathUtils.lerp(
-        figureRef.current.rotation.x,
-        targetRotX,
-        Math.min(1, delta * 5)
-      );
-      figureRef.current.position.x = THREE.MathUtils.lerp(
-        figureRef.current.position.x,
-        targetShiftX,
-        Math.min(1, delta * 5)
-      );
-      figureRef.current.position.y = Math.sin(t * 1.25) * 0.025;
-    }
-  });
+  useEffect(() => {
+    if (frontMatRef.current) frontMatRef.current.needsUpdate = true;
+  }, [frontTex]);
 
-  const pedestalY = -height / 2 - 0.12;
+  useEffect(() => {
+    if (backMatRef.current) backMatRef.current.needsUpdate = true;
+  }, [backTex]);
+
+  useFrame((state, delta) => {
+    if (!cardRef.current) return;
+    const t = state.clock.getElapsedTime();
+    const targetRotX = THREE.MathUtils.clamp((parallax?.y || 0) * -0.1, -0.16, 0.16);
+    const targetRotY = THREE.MathUtils.clamp((parallax?.x || 0) * 0.14, -0.22, 0.22);
+
+    cardRef.current.rotation.x = THREE.MathUtils.lerp(
+      cardRef.current.rotation.x,
+      targetRotX,
+      Math.min(1, delta * 6)
+    );
+    cardRef.current.rotation.y = THREE.MathUtils.lerp(
+      cardRef.current.rotation.y,
+      targetRotY,
+      Math.min(1, delta * 6)
+    );
+    cardRef.current.position.y = Math.sin(t * 1.3 + floatOffset) * 0.045;
+  });
 
   return (
     <group>
-      {/* Modelo de corpo inteiro em relevo 3D com profundidade real */}
-      <group ref={figureRef}>
-        <mesh geometry={geometry} position={[0, 0, 0.02]} castShadow receiveShadow>
+      <group ref={cardRef}>
+        {/* Frente - Packshot Isolado */}
+        <mesh geometry={geometry} position={[0, 0, 0.006]}>
           <meshPhysicalMaterial
             ref={frontMatRef}
-            key={frontBundle.map ? `fm-${frontBundle.map.uuid}` : 'fm-loading'}
-            map={frontBundle.map || undefined}
-            displacementMap={frontBundle.relief || undefined}
-            displacementScale={0.22}
-            displacementBias={-0.06}
-            bumpMap={frontBundle.relief || undefined}
-            bumpScale={0.028}
-            color={frontBundle.map ? '#FFFFFF' : accentColor}
+            key={frontTex ? `f-${frontTex.uuid}` : 'f-loading'}
+            map={frontTex || undefined}
+            color={frontTex ? '#FFFFFF' : accentColor}
             alphaMap={alphaMap}
             transparent
-            alphaTest={0.06}
-            roughness={0.48}
+            alphaTest={0.05}
+            roughness={0.38}
             metalness={0.02}
-            clearcoat={0.12}
-            sheen={0.28}
+            clearcoat={0.16}
+            clearcoatRoughness={0.34}
+            sheen={0.3}
             sheenColor="#FFF8F0"
           />
         </mesh>
 
-        {/* Verso limpo em relevo (foto de costas do Cloudinary ou silhueta editorial sem caixa cinza) */}
-        <mesh
-          geometry={geometry}
-          position={[0, 0, -0.02]}
-          rotation={[0, Math.PI, 0]}
-          castShadow
-        >
+        {/* Verso */}
+        <mesh geometry={geometry} position={[0, 0, -0.006]} rotation={[0, Math.PI, 0]}>
           <meshPhysicalMaterial
             ref={backMatRef}
-            key={backBundle.map ? `bm-${backBundle.map.uuid}` : 'bm-loading'}
-            map={backBundle.map || undefined}
-            displacementMap={backBundle.relief || undefined}
-            displacementScale={0.16}
-            displacementBias={-0.04}
-            color={backBundle.map ? '#EAE3DB' : accentColor}
+            key={backTex ? `b-${backTex.uuid}` : 'b-loading'}
+            map={backTex || undefined}
+            color={backTex ? '#F5F0EA' : accentColor}
             alphaMap={alphaMap}
             transparent
-            alphaTest={0.06}
-            roughness={0.55}
+            alphaTest={0.05}
+            roughness={0.44}
             metalness={0.02}
+            clearcoat={0.1}
           />
         </mesh>
       </group>
 
-      {/* Pedestal Circular Luminoso de Passarela 3D */}
-      {showPedestal && (
-        <group position={[0, pedestalY, 0]}>
-          {/* Disco do pedestal */}
-          <mesh receiveShadow castShadow>
-            <cylinderGeometry args={[1.18, 1.28, 0.12, 56]} />
-            <meshPhysicalMaterial
-              color="#EFEAE3"
-              roughness={0.28}
-              metalness={0.08}
-              clearcoat={0.4}
-            />
-          </mesh>
-
-          {/* Anel luminoso sutil em torno do pedestal */}
-          <mesh position={[0, 0.065, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[1.17, 0.016, 16, 64]} />
-            <meshStandardMaterial
-              color={isHighlighted ? accentColor : '#C9B290'}
-              emissive={isHighlighted ? accentColor : '#C9B290'}
-              emissiveIntensity={isHighlighted ? 1.45 : 0.45}
-              roughness={0.2}
-            />
-          </mesh>
-        </group>
+      {/* Sombra circular estática suave (Blob Shadow) — 0 custo de shadow-map */}
+      {showBlobShadow && (
+        <mesh
+          position={[0, -height / 2 - 0.24, -0.05]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          scale={[1.15, 0.62, 1]}
+        >
+          <circleGeometry args={[1.1, 32]} />
+          <meshBasicMaterial
+            map={blobShadowTex}
+            transparent
+            depthWrite={false}
+            opacity={0.78}
+          />
+        </mesh>
       )}
     </group>
   );

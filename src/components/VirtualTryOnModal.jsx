@@ -266,10 +266,10 @@ export default function VirtualTryOnModal({
               <div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#8C7554]">
-                    2. Look Selecionado
+                    2. Peça Isolada Exata
                   </span>
                   <span className="rounded-full bg-[#181615]/8 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#181615]/70">
-                    Full Body
+                    Packshot
                   </span>
                 </div>
 

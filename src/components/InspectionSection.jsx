@@ -1,12 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import {
-  ContactShadows,
-  Environment,
-  Lightformer,
-  MeshReflectorMaterial,
-  OrbitControls
-} from '@react-three/drei';
+import { Environment, Lightformer } from '@react-three/drei';
 import * as THREE from 'three';
 import {
   Sparkles,
@@ -22,125 +16,72 @@ import {
 } from 'lucide-react';
 import { formatYen, getProductImageUrl } from '../data/products';
 import EditorialGarment3D from './EditorialGarment3D';
+import WebGLErrorBoundary from './WebGLErrorBoundary';
 
-function RunwayInspectStage({
+function MobileSmoothInspectStage({
   product,
   frontUrl,
   backUrl,
+  manualYawRef,
   autoSpin,
   zoomFabric,
   parallax
 }) {
   const stageRef = useRef();
 
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     if (!stageRef.current) return;
     if (autoSpin) {
-      stageRef.current.rotation.y += delta * 0.72;
-    } else {
-      stageRef.current.rotation.y = THREE.MathUtils.lerp(
-        stageRef.current.rotation.y,
-        (parallax?.x || 0) * 0.14,
-        Math.min(1, delta * 4.5)
-      );
+      manualYawRef.current += delta * 0.85;
     }
 
-    const targetScale = zoomFabric ? 1.24 : 1.02;
+    stageRef.current.rotation.y = THREE.MathUtils.lerp(
+      stageRef.current.rotation.y,
+      manualYawRef.current,
+      Math.min(1, delta * 7)
+    );
+
+    const targetScale = zoomFabric ? 1.24 : 1.04;
     const s = THREE.MathUtils.lerp(
       stageRef.current.scale.x,
       targetScale,
-      Math.min(1, delta * 5)
+      Math.min(1, delta * 6)
     );
     stageRef.current.scale.setScalar(s);
   });
 
   return (
     <>
-      <ambientLight intensity={0.78} />
-      <spotLight
-        position={[0, 7.2, 5.5]}
-        angle={0.5}
-        penumbra={0.85}
-        intensity={1.55}
-        color="#FFF9F0"
-        castShadow
-      />
-      <directionalLight position={[4, 5, 5]} intensity={0.55} color="#FFFBF4" />
-      <directionalLight position={[-4, 3, -4]} intensity={0.4} color={product.colorSoft} />
-
-      <Environment resolution={256}>
+      <ambientLight intensity={0.88} />
+      <directionalLight position={[4, 6, 6]} intensity={0.7} color="#FFFBF5" />
+      <Environment resolution={64}>
         <Lightformer
           form="rect"
-          intensity={0.85}
+          intensity={0.82}
           position={[0, 5, 4]}
           scale={[8, 4, 1]}
           color="#FFF9F0"
         />
         <Lightformer
           form="ring"
-          intensity={0.55}
+          intensity={0.5}
           position={[-4, 2, 2]}
           scale={4}
           color="#F7DFC6"
         />
       </Environment>
 
-      {/* Modelo de corpo inteiro em relevo 3D + pedestal circular */}
-      <group ref={stageRef} position={[0, 0.12, 0]}>
+      <group ref={stageRef} position={[0, 0.08, 0]}>
         <EditorialGarment3D
           frontUrl={frontUrl}
           backUrl={backUrl}
-          accentColor={product.color}
-          width={2.55}
-          height={3.4}
-          showPedestal={true}
-          isHighlighted={true}
+          accentColor={product.colorSoft}
+          width={2.5}
+          height={3.34}
+          showBlobShadow={true}
           parallax={parallax}
         />
       </group>
-
-      {/* Piso reflexivo do palco de inspeção */}
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -1.78, 0]}
-        receiveShadow
-      >
-        <planeGeometry args={[18, 18]} />
-        <MeshReflectorMaterial
-          blur={[300, 100]}
-          resolution={512}
-          mixBlur={0.9}
-          mixStrength={0.44}
-          roughness={0.8}
-          depthScale={0.4}
-          minDepthThreshold={0.4}
-          maxDepthThreshold={1.4}
-          color={product.colorSoft}
-          metalness={0.08}
-          mirror={0.34}
-        />
-      </mesh>
-
-      <ContactShadows
-        position={[0, -1.76, 0]}
-        opacity={0.4}
-        scale={7.5}
-        blur={2.1}
-        far={4.5}
-        color="#181615"
-      />
-
-      {/* OrbitControls 3D suave para girar e dar zoom no look */}
-      <OrbitControls
-        enablePan={false}
-        enableZoom={true}
-        minDistance={3.3}
-        maxDistance={6.6}
-        minPolarAngle={Math.PI / 2.8}
-        maxPolarAngle={Math.PI / 2.02}
-        dampingFactor={0.06}
-        enableDamping
-      />
     </>
   );
 }
@@ -155,13 +96,20 @@ export default function InspectionSection({
   onAddToCart,
   onOpenTryOn
 }) {
-  // 'fabric' | 'sizes' | 'label' (Costas & Etiqueta apenas como aba secundária limpa)
   const [activeTab, setActiveTab] = useState('fabric');
   const [autoSpin, setAutoSpin] = useState(false);
   const [zoomFabric, setZoomFabric] = useState(false);
   const [parallax, setParallax] = useState({ x: 0, y: 0 });
+  const [webglLost, setWebglLost] = useState(false);
+
+  const manualYawRef = useRef(0);
+  const draggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const startYRef = useRef(0);
+  const lastXRef = useRef(0);
 
   useEffect(() => {
+    manualYawRef.current = 0;
     setAutoSpin(false);
     setZoomFabric(false);
   }, [product.id]);
@@ -169,9 +117,39 @@ export default function InspectionSection({
   const frontUrl = getProductImageUrl(product, 'front', customPhotos);
   const backUrl = getProductImageUrl(product, 'back', customPhotos);
 
+  const handleStagePointerDown = (e) => {
+    draggingRef.current = true;
+    startXRef.current = e.clientX;
+    startYRef.current = e.clientY;
+    lastXRef.current = e.clientX;
+  };
+
+  const handleStagePointerMove = (e) => {
+    if (e.pointerType === 'mouse') {
+      const nx = (e.clientX / window.innerWidth - 0.5) * 2;
+      const ny = (e.clientY / window.innerHeight - 0.5) * 2;
+      setParallax({ x: nx, y: ny });
+    }
+    if (!draggingRef.current) return;
+    const totalDx = Math.abs(e.clientX - startXRef.current);
+    const totalDy = Math.abs(e.clientY - startYRef.current);
+    if (totalDy > 12 && totalDy > totalDx) {
+      draggingRef.current = false;
+      return;
+    }
+    const dx = e.clientX - lastXRef.current;
+    lastXRef.current = e.clientX;
+    manualYawRef.current += dx * 0.012;
+  };
+
+  const handleStagePointerUp = () => {
+    draggingRef.current = false;
+  };
+
   const handleFabricClick = () => {
     setActiveTab('fabric');
     setAutoSpin(false);
+    manualYawRef.current = 0;
     setZoomFabric((z) => !z);
   };
 
@@ -185,14 +163,23 @@ export default function InspectionSection({
     setZoomFabric(false);
   };
 
+  const fallback2D = (
+    <div className="flex h-full w-full items-center justify-center p-6">
+      <div className="relative aspect-[3/4] h-[90%] overflow-hidden rounded-[1.8rem] bg-[#F7F4F0] shadow-xl">
+        <img
+          src={frontUrl}
+          alt={product.name}
+          className={`h-full w-full object-cover transition-transform duration-500 ${
+            zoomFabric ? 'scale-125' : 'scale-100'
+          }`}
+        />
+      </div>
+    </div>
+  );
+
   return (
     <section
       id="detalhes"
-      onPointerMove={(e) => {
-        const nx = (e.clientX / window.innerWidth - 0.5) * 2;
-        const ny = (e.clientY / window.innerHeight - 0.5) * 2;
-        setParallax({ x: nx, y: ny });
-      }}
       className="relative min-h-screen w-full overflow-hidden py-24 sm:py-32 transition-colors duration-700"
       style={{
         background: `linear-gradient(180deg, ${product.colorSoft} 0%, #F7F4F0 46%, #F7F4F0 100%)`
@@ -212,7 +199,7 @@ export default function InspectionSection({
         <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-[11px] font-extrabold uppercase tracking-[0.34em] text-[#8C7554]">
-              FIT CHECK 3D • PASSARELA INTERATIVA • {product.sku}
+              FIT CHECK 3D • PACKSHOT STUDIO • {product.sku}
             </p>
             <h2 className="mt-2 font-display text-3xl sm:text-5xl font-extrabold uppercase tracking-[-0.02em] text-[#181615]">
               {product.name}
@@ -230,13 +217,19 @@ export default function InspectionSection({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
-          {/* Palco 3D Real com OrbitControls, Piso Reflexivo e Pedestal Luminoso */}
+          {/* Palco 3D Leve 60fps com touch-action: pan-y + ErrorBoundary */}
           <div className="lg:col-span-6 relative">
             <div
-              className="relative h-[500px] sm:h-[620px] w-full rounded-[2rem] border border-white/80 shadow-[0_28px_70px_-28px_rgba(24,22,21,0.22)] overflow-hidden cursor-grab active:cursor-grabbing"
+              onPointerDown={handleStagePointerDown}
+              onPointerMove={handleStagePointerMove}
+              onPointerUp={handleStagePointerUp}
+              onPointerCancel={handleStagePointerUp}
+              onPointerLeave={handleStagePointerUp}
               style={{
-                background: `radial-gradient(circle at 50% 38%, #FFFFFF 0%, ${product.colorSoft} 66%, ${product.bgTint} 100%)`
+                touchAction: 'pan-y',
+                background: `radial-gradient(circle at 50% 42%, #FFFFFF 0%, ${product.colorSoft} 66%, ${product.bgTint} 100%)`
               }}
+              className="relative h-[470px] sm:h-[580px] w-full rounded-[2rem] border border-white/80 shadow-[0_24px_60px_-28px_rgba(24,22,21,0.2)] overflow-hidden cursor-grab active:cursor-grabbing"
             >
               <div className="pointer-events-none absolute top-5 left-5 z-10 flex items-center gap-2 rounded-full bg-[#F7F4F0]/88 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#181615]/80 backdrop-blur-md">
                 <span
@@ -245,28 +238,48 @@ export default function InspectionSection({
                 />
                 <span>
                   {autoSpin
-                    ? 'Passarela 360° Ativa'
+                    ? 'Rotação 360° Ativa'
                     : zoomFabric
                     ? 'Zoom nos Detalhes do Tecido'
-                    : 'Arraste para Orbitar 3D • Scroll para Zoom'}
+                    : 'Arraste para girar a peça em 3D'}
                 </span>
               </div>
 
-              <Canvas
-                shadows
-                camera={{ position: [0, 0.25, 5.15], fov: 40 }}
-                dpr={[1, 2]}
-                gl={{ alpha: true, antialias: true }}
-              >
-                <RunwayInspectStage
-                  product={product}
-                  frontUrl={frontUrl}
-                  backUrl={backUrl}
-                  autoSpin={autoSpin}
-                  zoomFabric={zoomFabric}
-                  parallax={parallax}
-                />
-              </Canvas>
+              {webglLost ? (
+                fallback2D
+              ) : (
+                <WebGLErrorBoundary fallback={fallback2D}>
+                  <Canvas
+                    camera={{ position: [0, 0.04, 4.95], fov: 40 }}
+                    dpr={[1, 1.5]}
+                    gl={{
+                      antialias: true,
+                      powerPreference: 'high-performance',
+                      alpha: true
+                    }}
+                    onCreated={({ gl }) => {
+                      const canvas = gl.domElement;
+                      canvas.addEventListener('webglcontextlost', (e) => {
+                        e.preventDefault();
+                        setWebglLost(true);
+                      });
+                      canvas.addEventListener('webglcontextrestored', () => {
+                        setWebglLost(false);
+                      });
+                    }}
+                  >
+                    <MobileSmoothInspectStage
+                      product={product}
+                      frontUrl={frontUrl}
+                      backUrl={backUrl}
+                      manualYawRef={manualYawRef}
+                      autoSpin={autoSpin}
+                      zoomFabric={zoomFabric}
+                      parallax={parallax}
+                    />
+                  </Canvas>
+                </WebGLErrorBoundary>
+              )}
 
               <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full border border-[#181615]/10 bg-[#F7F4F0]/90 p-1 backdrop-blur-md">
                 <button
@@ -274,6 +287,7 @@ export default function InspectionSection({
                   onClick={() => {
                     setAutoSpin(false);
                     setZoomFabric(false);
+                    manualYawRef.current = 0;
                   }}
                   className={`rounded-full px-3.5 py-1 text-[11px] font-bold transition-all ${
                     !zoomFabric && !autoSpin
@@ -281,7 +295,7 @@ export default function InspectionSection({
                       : 'text-[#181615]/70 hover:text-[#181615]'
                   }`}
                 >
-                  Look Completo
+                  Peça Inteira
                 </button>
                 <button
                   type="button"
@@ -311,7 +325,6 @@ export default function InspectionSection({
 
           {/* Painel Interativo à Direita */}
           <div className="lg:col-span-6 flex flex-col gap-4">
-            {/* Cartão Editorial com Abas Limpas (Tecido | Tamanhos | Costas & Etiqueta) */}
             <div className="glass-panel rounded-[1.75rem] p-6 sm:p-7 shadow-[0_20px_55px_-28px_rgba(24,22,21,0.16)]">
               <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-[#181615]/10 pb-3">
                 {[
@@ -461,7 +474,6 @@ export default function InspectionSection({
               )}
             </div>
 
-            {/* 4 Botões de Inspeção */}
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
@@ -515,14 +527,14 @@ export default function InspectionSection({
                 </span>
                 <div>
                   <span className="block text-xs font-bold uppercase tracking-[0.12em]">
-                    Passarela 360°
+                    Caimento / 360°
                   </span>
                   <span
                     className={`block text-[11px] ${
                       autoSpin ? 'text-[#F7F4F0]/70' : 'text-[#181615]/55'
                     }`}
                   >
-                    {autoSpin ? 'Girando no pedestal' : 'Rotação espacial 3D'}
+                    {autoSpin ? 'Girando em 3D' : 'Rotação suave 3D'}
                   </span>
                 </div>
               </button>
@@ -586,7 +598,6 @@ export default function InspectionSection({
               </button>
             </div>
 
-            {/* BOTÃO DE DESTAQUE: PROVAR EM MIM (IA) */}
             <button
               type="button"
               onClick={onOpenTryOn}
@@ -599,7 +610,7 @@ export default function InspectionSection({
                 <div>
                   <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.28em] text-[#D8C7B4]">
                     <Camera className="h-3.5 w-3.5" />
-                    IDM-VTON + CatVTON • Virtual Try-On Gratuito
+                    IDM-VTON + CatVTON • Peça Isolada Exata
                   </span>
                   <span className="mt-0.5 block font-display text-sm sm:text-base font-extrabold uppercase tracking-[0.06em]">
                     PROVAR EM MIM (IA) — PROVADOR VIRTUAL

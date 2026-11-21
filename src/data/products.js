@@ -72,8 +72,10 @@ export const PRODUCTS = [
     bgTint: '#E6BFB6',
     accentText: '#4F221A',
     defaultFrontImage: '/roupas/corset-terracota.jpg',
+    garmentDes:
+      'sleeveless terracotta satin corset crop top, sweetheart neckline, thin spaghetti straps, structured vertical boning',
     description:
-      'Terracotta satin structured cropped corset top with sweetheart neckline, thin spaghetti straps and vertical couture boning seams',
+      'sleeveless terracotta satin corset crop top, sweetheart neckline, thin spaghetti straps, structured vertical boning',
     fabricHeadline: 'CETIM ESTRUTURADO. BARBATANAS & DECOTE CORAÇÃO.',
     fabricTitle: 'Cetim Duchesse Stretch',
     fabricDescription:
@@ -109,8 +111,10 @@ export const PRODUCTS = [
     bgTint: '#E2D6C5',
     accentText: '#463C2E',
     defaultFrontImage: '/roupas/calca-cargo.jpg',
+    garmentDes:
+      'sand beige oversized parachute cargo pants, adjustable drawstring waist, wide legs with knee pleats, large 3D side cargo pockets, cinched elastic ankle cuffs',
     description:
-      'Sand beige streetwear parachute cargo pants with adjustable drawstring waist, wide voluminous legs with knee pleats, large 3D side cargo pockets, and cinched elastic ankle cuffs',
+      'sand beige oversized parachute cargo pants, adjustable drawstring waist, wide legs with knee pleats, large 3D side cargo pockets, cinched elastic ankle cuffs',
     fabricHeadline: 'NYLON TECHNICAL LEVE. VOLUME STREETWEAR REAL.',
     fabricTitle: 'Ripstop Cotton-Nylon Ultraleve',
     fabricDescription:
@@ -146,8 +150,10 @@ export const PRODUCTS = [
     bgTint: '#C2D3C7',
     accentText: '#233328',
     defaultFrontImage: '/roupas/jaqueta-bomber.jpg',
+    garmentDes:
+      'sage military green oversized satin-nylon bomber jacket, metallic silver front zipper, puffed ruched sleeves, bicep utility pocket, ribbed collar and cuffs',
     description:
-      'Sage military green oversized streetwear bomber jacket with metallic front zipper, puffed ruched sleeves with utility bicep pocket, ribbed baseball collar, and cropped ribbed hem',
+      'sage military green oversized satin-nylon bomber jacket, metallic silver front zipper, puffed ruched sleeves, bicep utility pocket, ribbed collar and cuffs',
     fabricHeadline: 'NYLON ACETINADO MILITAR. MANGAS BUFANTES & ZÍPER METAL.',
     fabricTitle: 'Nylon Flight Satin & Ribana Pesada',
     fabricDescription:
@@ -183,8 +189,10 @@ export const PRODUCTS = [
     bgTint: '#EDCAD3',
     accentText: '#542030',
     defaultFrontImage: '/roupas/conjunto-ribbed.jpg',
+    garmentDes:
+      'bubblegum pink two-piece ribbed knit co-ord set, asymmetric one-shoulder cut-out crop top and fitted high-waist ribbed midi skirt with side slit',
     description:
-      'Bubblegum chic pink two-piece ribbed knit co-ord set featuring an asymmetric one-shoulder cut-out cropped top paired with a bodycon fitted midi skirt with a high side slit',
+      'bubblegum pink two-piece ribbed knit co-ord set, asymmetric one-shoulder cut-out crop top and fitted high-waist ribbed midi skirt with side slit',
     fabricHeadline: 'MALHA CANELADA PREMIUM. RECORTE ASSIMÉTRICO + FENDA.',
     fabricTitle: 'Ribbed Modal Stretch 320g',
     fabricDescription:
@@ -220,8 +228,10 @@ export const PRODUCTS = [
     bgTint: '#C4C1CA',
     accentText: '#232129',
     defaultFrontImage: '/roupas/vestido-onix.jpg',
+    garmentDes:
+      'graphite onyx metallic-sheen satin-jersey draped mini dress, asymmetric spaghetti straps, bodycon ruched side gathers, adjustable side drawstring tie',
     description:
-      'Graphite onyx metallic-sheen draped mini dress with asymmetric spaghetti straps, bodycon ruched gathers across the waist and hips, and adjustable side drawstring tie for a chic night-out look',
+      'graphite onyx metallic-sheen satin-jersey draped mini dress, asymmetric spaghetti straps, bodycon ruched side gathers, adjustable side drawstring tie',
     fabricHeadline: 'MALHA FLUIDA ÔNIX. DRAPEADO AJUSTÁVEL PARA A NOITE.',
     fabricTitle: 'Jersey Fluid Acetinado Ônix',
     fabricDescription:
