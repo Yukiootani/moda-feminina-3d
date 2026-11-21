@@ -1,6 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { ContactShadows, Environment, Lightformer } from '@react-three/drei';
+import {
+  ContactShadows,
+  Environment,
+  Lightformer,
+  MeshReflectorMaterial,
+  OrbitControls
+} from '@react-three/drei';
 import * as THREE from 'three';
 import {
   Sparkles,
@@ -11,62 +17,57 @@ import {
   Camera,
   Check,
   ShoppingBag,
-  Layers
+  Layers,
+  Tag
 } from 'lucide-react';
 import { formatYen, getProductImageUrl } from '../data/products';
 import EditorialGarment3D from './EditorialGarment3D';
 
-function InspectableEditorialLookbook({
+function RunwayInspectStage({
   product,
   frontUrl,
   backUrl,
-  targetRotationY,
   autoSpin,
   zoomFabric,
   parallax
 }) {
-  const groupRef = useRef();
-  const isDraggingRef = useRef(false);
-  const prevPointerXRef = useRef(0);
-  const manualRotRef = useRef(0);
-
-  useEffect(() => {
-    manualRotRef.current = targetRotationY;
-  }, [targetRotationY, product.id]);
+  const stageRef = useRef();
 
   useFrame((state, delta) => {
-    const t = state.clock.getElapsedTime();
-    if (!groupRef.current) return;
-
-    if (autoSpin && !isDraggingRef.current) {
-      manualRotRef.current += delta * 0.9;
+    if (!stageRef.current) return;
+    if (autoSpin) {
+      stageRef.current.rotation.y += delta * 0.72;
+    } else {
+      stageRef.current.rotation.y = THREE.MathUtils.lerp(
+        stageRef.current.rotation.y,
+        (parallax?.x || 0) * 0.14,
+        Math.min(1, delta * 4.5)
+      );
     }
 
-    const desiredRotY =
-      manualRotRef.current +
-      (autoSpin ? 0 : (parallax?.x || 0) * 0.14 + Math.sin(t * 0.65) * 0.06);
-
-    groupRef.current.rotation.y = THREE.MathUtils.lerp(
-      groupRef.current.rotation.y,
-      desiredRotY,
-      Math.min(1, delta * 6.5)
-    );
-    groupRef.current.position.y = Math.sin(t * 1.35) * 0.05;
-
-    const targetScale = zoomFabric ? 1.24 : 1.04;
+    const targetScale = zoomFabric ? 1.24 : 1.02;
     const s = THREE.MathUtils.lerp(
-      groupRef.current.scale.x,
+      stageRef.current.scale.x,
       targetScale,
-      Math.min(1, delta * 5.5)
+      Math.min(1, delta * 5)
     );
-    groupRef.current.scale.setScalar(s);
+    stageRef.current.scale.setScalar(s);
   });
 
   return (
     <>
-      <ambientLight intensity={0.85} />
-      <directionalLight position={[4, 6, 6]} intensity={0.72} color="#FFFBF5" />
-      <directionalLight position={[-4, 3, -5]} intensity={0.42} color="#F3E2D0" />
+      <ambientLight intensity={0.78} />
+      <spotLight
+        position={[0, 7.2, 5.5]}
+        angle={0.5}
+        penumbra={0.85}
+        intensity={1.55}
+        color="#FFF9F0"
+        castShadow
+      />
+      <directionalLight position={[4, 5, 5]} intensity={0.55} color="#FFFBF4" />
+      <directionalLight position={[-4, 3, -4]} intensity={0.4} color={product.colorSoft} />
+
       <Environment resolution={256}>
         <Lightformer
           form="rect"
@@ -84,44 +85,61 @@ function InspectableEditorialLookbook({
         />
       </Environment>
 
-      <group
-        ref={groupRef}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          isDraggingRef.current = true;
-          prevPointerXRef.current = e.clientX;
-        }}
-        onPointerMove={(e) => {
-          if (!isDraggingRef.current) return;
-          const dx = e.clientX - prevPointerXRef.current;
-          prevPointerXRef.current = e.clientX;
-          manualRotRef.current += dx * 0.014;
-        }}
-        onPointerUp={() => {
-          isDraggingRef.current = false;
-        }}
-        onPointerLeave={() => {
-          isDraggingRef.current = false;
-        }}
-      >
+      {/* Modelo de corpo inteiro em relevo 3D + pedestal circular */}
+      <group ref={stageRef} position={[0, 0.12, 0]}>
         <EditorialGarment3D
           frontUrl={frontUrl}
           backUrl={backUrl}
-          accentColor={product.colorSoft}
+          accentColor={product.color}
           width={2.55}
           height={3.4}
-          waveIntensity={0.04}
+          showPedestal={true}
+          isHighlighted={true}
           parallax={parallax}
         />
       </group>
 
+      {/* Piso reflexivo do palco de inspeção */}
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, -1.78, 0]}
+        receiveShadow
+      >
+        <planeGeometry args={[18, 18]} />
+        <MeshReflectorMaterial
+          blur={[300, 100]}
+          resolution={512}
+          mixBlur={0.9}
+          mixStrength={0.44}
+          roughness={0.8}
+          depthScale={0.4}
+          minDepthThreshold={0.4}
+          maxDepthThreshold={1.4}
+          color={product.colorSoft}
+          metalness={0.08}
+          mirror={0.34}
+        />
+      </mesh>
+
       <ContactShadows
-        position={[0, -1.86, 0]}
-        opacity={0.3}
-        scale={7}
-        blur={2.5}
+        position={[0, -1.76, 0]}
+        opacity={0.4}
+        scale={7.5}
+        blur={2.1}
         far={4.5}
         color="#181615"
+      />
+
+      {/* OrbitControls 3D suave para girar e dar zoom no look */}
+      <OrbitControls
+        enablePan={false}
+        enableZoom={true}
+        minDistance={3.3}
+        maxDistance={6.6}
+        minPolarAngle={Math.PI / 2.8}
+        maxPolarAngle={Math.PI / 2.02}
+        dampingFactor={0.06}
+        enableDamping
       />
     </>
   );
@@ -137,14 +155,13 @@ export default function InspectionSection({
   onAddToCart,
   onOpenTryOn
 }) {
+  // 'fabric' | 'sizes' | 'label' (Costas & Etiqueta apenas como aba secundária limpa)
   const [activeTab, setActiveTab] = useState('fabric');
-  const [rotationY, setRotationY] = useState(0);
   const [autoSpin, setAutoSpin] = useState(false);
   const [zoomFabric, setZoomFabric] = useState(false);
   const [parallax, setParallax] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    setRotationY(0);
     setAutoSpin(false);
     setZoomFabric(false);
   }, [product.id]);
@@ -155,30 +172,18 @@ export default function InspectionSection({
   const handleFabricClick = () => {
     setActiveTab('fabric');
     setAutoSpin(false);
-    setRotationY(0);
     setZoomFabric((z) => !z);
   };
 
   const handleSpin360Click = () => {
-    setActiveTab('spin');
     setZoomFabric(false);
-    if (!autoSpin && Math.abs(rotationY % (Math.PI * 2)) < 0.5) {
-      setRotationY((r) => r + Math.PI);
-    } else if (!autoSpin) {
-      setAutoSpin(true);
-    } else {
-      setAutoSpin(false);
-      setRotationY(0);
-    }
+    setAutoSpin((s) => !s);
   };
 
   const handleSizesClick = () => {
     setActiveTab('sizes');
     setZoomFabric(false);
   };
-
-  const showingBack =
-    Math.round(Math.abs(rotationY / Math.PI)) % 2 === 1 && !autoSpin;
 
   return (
     <section
@@ -207,7 +212,7 @@ export default function InspectionSection({
         <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-[11px] font-extrabold uppercase tracking-[0.34em] text-[#8C7554]">
-              FIT CHECK 3D • LOOKBOOK EDITORIAL • {product.sku}
+              FIT CHECK 3D • PASSARELA INTERATIVA • {product.sku}
             </p>
             <h2 className="mt-2 font-display text-3xl sm:text-5xl font-extrabold uppercase tracking-[-0.02em] text-[#181615]">
               {product.name}
@@ -225,41 +230,38 @@ export default function InspectionSection({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
-          {/* Palco 3D Editorial com Parallax, Brilho Especular e Rotação Frente/Costas */}
+          {/* Palco 3D Real com OrbitControls, Piso Reflexivo e Pedestal Luminoso */}
           <div className="lg:col-span-6 relative">
             <div
-              className="relative h-[490px] sm:h-[600px] w-full rounded-[2rem] border border-white/80 shadow-[0_28px_70px_-28px_rgba(24,22,21,0.22)] overflow-hidden cursor-grab active:cursor-grabbing"
+              className="relative h-[500px] sm:h-[620px] w-full rounded-[2rem] border border-white/80 shadow-[0_28px_70px_-28px_rgba(24,22,21,0.22)] overflow-hidden cursor-grab active:cursor-grabbing"
               style={{
-                background: `radial-gradient(circle at 50% 44%, #FFFFFF 0%, ${product.colorSoft} 68%, ${product.bgTint} 100%)`
+                background: `radial-gradient(circle at 50% 38%, #FFFFFF 0%, ${product.colorSoft} 66%, ${product.bgTint} 100%)`
               }}
             >
-              <div className="pointer-events-none absolute top-5 left-5 z-10 flex items-center gap-2 rounded-full bg-[#F7F4F0]/85 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#181615]/80 backdrop-blur-md">
+              <div className="pointer-events-none absolute top-5 left-5 z-10 flex items-center gap-2 rounded-full bg-[#F7F4F0]/88 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#181615]/80 backdrop-blur-md">
                 <span
                   className="h-2 w-2 rounded-full"
                   style={{ backgroundColor: product.color }}
                 />
                 <span>
                   {autoSpin
-                    ? 'Rotação 360° Ativa'
-                    : showingBack
-                    ? 'Verso • Ficha & Etiqueta'
+                    ? 'Passarela 360° Ativa'
                     : zoomFabric
-                    ? 'Zoom • Detalhe Editorial'
-                    : 'Arraste para girar Frente / Costas'}
+                    ? 'Zoom nos Detalhes do Tecido'
+                    : 'Arraste para Orbitar 3D • Scroll para Zoom'}
                 </span>
               </div>
 
               <Canvas
                 shadows
-                camera={{ position: [0, 0.04, 4.9], fov: 40 }}
+                camera={{ position: [0, 0.25, 5.15], fov: 40 }}
                 dpr={[1, 2]}
                 gl={{ alpha: true, antialias: true }}
               >
-                <InspectableEditorialLookbook
+                <RunwayInspectStage
                   product={product}
                   frontUrl={frontUrl}
                   backUrl={backUrl}
-                  targetRotationY={rotationY}
                   autoSpin={autoSpin}
                   zoomFabric={zoomFabric}
                   parallax={parallax}
@@ -271,29 +273,26 @@ export default function InspectionSection({
                   type="button"
                   onClick={() => {
                     setAutoSpin(false);
-                    setRotationY(0);
+                    setZoomFabric(false);
                   }}
                   className={`rounded-full px-3.5 py-1 text-[11px] font-bold transition-all ${
-                    !showingBack && !autoSpin
+                    !zoomFabric && !autoSpin
                       ? 'bg-[#181615] text-[#F7F4F0]'
                       : 'text-[#181615]/70 hover:text-[#181615]'
                   }`}
                 >
-                  Frente
+                  Look Completo
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setAutoSpin(false);
-                    setRotationY(Math.PI);
-                  }}
+                  onClick={() => setZoomFabric((z) => !z)}
                   className={`rounded-full px-3.5 py-1 text-[11px] font-bold transition-all ${
-                    showingBack
+                    zoomFabric
                       ? 'bg-[#181615] text-[#F7F4F0]'
                       : 'text-[#181615]/70 hover:text-[#181615]'
                   }`}
                 >
-                  Costas & Etiqueta
+                  Zoom Tecido
                 </button>
                 <button
                   type="button"
@@ -304,7 +303,7 @@ export default function InspectionSection({
                       : 'text-[#181615]/70 hover:text-[#181615]'
                   }`}
                 >
-                  360°
+                  Girar 360°
                 </button>
               </div>
             </div>
@@ -312,23 +311,31 @@ export default function InspectionSection({
 
           {/* Painel Interativo à Direita */}
           <div className="lg:col-span-6 flex flex-col gap-4">
+            {/* Cartão Editorial com Abas Limpas (Tecido | Tamanhos | Costas & Etiqueta) */}
             <div className="glass-panel rounded-[1.75rem] p-6 sm:p-7 shadow-[0_20px_55px_-28px_rgba(24,22,21,0.16)]">
+              <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-[#181615]/10 pb-3">
+                {[
+                  { id: 'fabric', label: 'Tecido & Caimento' },
+                  { id: 'sizes', label: 'Guia de Tamanhos' },
+                  { id: 'label', label: 'Costas & Etiqueta' }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`rounded-full px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] transition-all ${
+                      activeTab === tab.id
+                        ? 'bg-[#181615] text-[#F7F4F0]'
+                        : 'bg-white/65 text-[#181615]/65 hover:text-[#181615]'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
               {activeTab === 'sizes' ? (
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#8C7554]">
-                        FIT CHECK • MODELAGEM URBANA
-                      </span>
-                      <h3 className="font-display text-2xl font-extrabold uppercase text-[#181615]">
-                        Guia de Tamanhos
-                      </h3>
-                    </div>
-                    <span className="rounded-full bg-[#181615] px-3 py-1 text-xs font-bold text-[#F7F4F0]">
-                      Tam. {selectedSize}
-                    </span>
-                  </div>
-
                   <div className="mb-4 grid grid-cols-4 gap-2">
                     {['P', 'M', 'G', 'GG'].map((sz) => (
                       <button
@@ -380,6 +387,43 @@ export default function InspectionSection({
                     </table>
                   </div>
                 </div>
+              ) : activeTab === 'label' ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between rounded-2xl border border-[#C9B290]/60 bg-[#FAF7F2] px-5 py-4">
+                    <div>
+                      <span className="block font-display text-base font-extrabold uppercase tracking-[0.18em] text-[#181615]">
+                        HARUMI MODAS
+                      </span>
+                      <span className="text-[10px] font-bold uppercase tracking-[0.26em] text-[#8C7554]">
+                        TOKYO • STREET LUXE • {product.sku}
+                      </span>
+                    </div>
+                    <Tag className="h-5 w-5 text-[#8C7554]" />
+                  </div>
+
+                  <p className="text-sm leading-relaxed text-[#181615]/80">
+                    {product.backDetails}
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-[#181615]/10 pt-3 text-xs">
+                    <div>
+                      <span className="block text-[10px] font-bold uppercase tracking-[0.22em] text-[#8C7554]">
+                        Composição
+                      </span>
+                      <span className="mt-0.5 block font-medium text-[#181615]/85">
+                        {product.composition}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-bold uppercase tracking-[0.22em] text-[#8C7554]">
+                        Cuidados
+                      </span>
+                      <span className="mt-0.5 block font-medium text-[#181615]/85">
+                        {product.care}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <div>
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-[#181615]/8 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.24em] text-[#181615]">
@@ -417,19 +461,20 @@ export default function InspectionSection({
               )}
             </div>
 
+            {/* 4 Botões de Inspeção */}
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={handleFabricClick}
                 className={`group flex items-center gap-3 rounded-2xl border p-4 text-left transition-all ${
-                  activeTab === 'fabric'
+                  zoomFabric
                     ? 'border-[#181615] bg-[#181615] text-[#F7F4F0] shadow-md'
                     : 'border-[#181615]/12 bg-white/80 text-[#181615] hover:border-[#181615]/40'
                 }`}
               >
                 <span
                   className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                    activeTab === 'fabric'
+                    zoomFabric
                       ? 'bg-white/15 text-[#D8C7B4]'
                       : 'bg-[#F7F4F0] text-[#181615]'
                   }`}
@@ -438,14 +483,14 @@ export default function InspectionSection({
                 </span>
                 <div>
                   <span className="block text-xs font-bold uppercase tracking-[0.12em]">
-                    Tecido & Textura
+                    Tecido & Zoom
                   </span>
                   <span
                     className={`block text-[11px] ${
-                      activeTab === 'fabric' ? 'text-[#F7F4F0]/70' : 'text-[#181615]/55'
+                      zoomFabric ? 'text-[#F7F4F0]/70' : 'text-[#181615]/55'
                     }`}
                   >
-                    {zoomFabric ? 'Zoom ativo • Clique p/ sair' : 'Ver detalhes de perto'}
+                    {zoomFabric ? 'Zoom ativo • Clique p/ sair' : 'Aproximar detalhes'}
                   </span>
                 </div>
               </button>
@@ -454,14 +499,14 @@ export default function InspectionSection({
                 type="button"
                 onClick={handleSpin360Click}
                 className={`group flex items-center gap-3 rounded-2xl border p-4 text-left transition-all ${
-                  activeTab === 'spin' || showingBack || autoSpin
+                  autoSpin
                     ? 'border-[#181615] bg-[#181615] text-[#F7F4F0] shadow-md'
                     : 'border-[#181615]/12 bg-white/80 text-[#181615] hover:border-[#181615]/40'
                 }`}
               >
                 <span
                   className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                    activeTab === 'spin' || showingBack || autoSpin
+                    autoSpin
                       ? 'bg-white/15 text-[#D8C7B4]'
                       : 'bg-[#F7F4F0] text-[#181615]'
                   }`}
@@ -470,16 +515,14 @@ export default function InspectionSection({
                 </span>
                 <div>
                   <span className="block text-xs font-bold uppercase tracking-[0.12em]">
-                    Caimento / 360°
+                    Passarela 360°
                   </span>
                   <span
                     className={`block text-[11px] ${
-                      activeTab === 'spin' || showingBack || autoSpin
-                        ? 'text-[#F7F4F0]/70'
-                        : 'text-[#181615]/55'
+                      autoSpin ? 'text-[#F7F4F0]/70' : 'text-[#181615]/55'
                     }`}
                   >
-                    Girar frente & verso
+                    {autoSpin ? 'Girando no pedestal' : 'Rotação espacial 3D'}
                   </span>
                 </div>
               </button>
@@ -556,7 +599,7 @@ export default function InspectionSection({
                 <div>
                   <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.28em] text-[#D8C7B4]">
                     <Camera className="h-3.5 w-3.5" />
-                    Gemini Multimodal • Virtual Try-On
+                    IDM-VTON + CatVTON • Virtual Try-On Gratuito
                   </span>
                   <span className="mt-0.5 block font-display text-sm sm:text-base font-extrabold uppercase tracking-[0.06em]">
                     PROVAR EM MIM (IA) — PROVADOR VIRTUAL

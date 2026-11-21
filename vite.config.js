@@ -2,19 +2,19 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 /**
- * Plugin Vite local que expõe o mesmo endpoint `/api/tryon` em `npm run dev`
- * usando a função serverless `api/tryon.js` com `.env` carregado automaticamente.
+ * Plugin Vite local que expõe `/api/tryon` em `npm run dev`
+ * carregando `HF_TOKEN` do `.env` local e executando `api/tryon.js`.
  */
 function localTryOnApiPlugin() {
   return {
     name: 'local-tryon-api',
     configureServer(server) {
       const env = loadEnv(server.config.mode, process.cwd(), '');
-      if (env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY) {
-        process.env.GEMINI_API_KEY = env.GEMINI_API_KEY;
+      if (env.HF_TOKEN && !process.env.HF_TOKEN) {
+        process.env.HF_TOKEN = env.HF_TOKEN.trim();
       }
-      if (env.VITE_GEMINI_API_KEY && !process.env.VITE_GEMINI_API_KEY) {
-        process.env.VITE_GEMINI_API_KEY = env.VITE_GEMINI_API_KEY;
+      if (env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY) {
+        process.env.GEMINI_API_KEY = env.GEMINI_API_KEY.trim();
       }
 
       server.middlewares.use('/api/tryon', async (req, res) => {
@@ -25,7 +25,6 @@ function localTryOnApiPlugin() {
             const rawBody = Buffer.concat(chunks).toString('utf8');
             req.body = rawBody ? JSON.parse(rawBody) : {};
 
-            // Adapter leve compatível com assinatura Vercel (res.status().json())
             const vercelRes = {
               setHeader: (k, v) => res.setHeader(k, v),
               status(code) {
@@ -69,8 +68,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          three: ['three', '@react-three/fiber', '@react-three/drei'],
-          genai: ['@google/genai']
+          three: ['three', '@react-three/fiber', '@react-three/drei']
         }
       }
     }

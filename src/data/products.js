@@ -1,15 +1,11 @@
-// Catálogo HARUMI MODAS • Street Luxe / Zara & Bershka Lookbook • Ecossistema Portal LOJAS JP
-// Fotografias Editoriais Reais + Gerenciador Cloudinary (`jontqsrz`) com `e_background_removal`
+// Catálogo HARUMI MODAS • Street Luxe / Zara Lookbook • Ecossistema Portal LOJAS JP
+// 5 Modelos Reais de Corpo Inteiro (`/roupas/*.jpg`) + Gerenciador Cloudinary (`jontqsrz`)
 
 export const CLOUDINARY_CLOUD_NAME =
   import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'jontqsrz';
 
 const CUSTOM_PHOTOS_STORAGE_KEY = 'harumi_modas_cloudinary_photos_v1';
 
-/**
- * Monta URL otimizada do Cloudinary (`jontqsrz`) com suporte a recorte automático de fundo
- * (`e_background_removal`) ou aceita uma URL completa (Unsplash / Pexels / Cloudinary).
- */
 export function resolveCloudinaryOrUrl(input, removeBackground = true) {
   if (!input || typeof input !== 'string' || !input.trim()) {
     return null;
@@ -19,7 +15,6 @@ export function resolveCloudinaryOrUrl(input, removeBackground = true) {
   const transforms = `${bgTransform}f_auto,q_auto:best,w_1200`;
 
   if (/^https?:\/\//i.test(raw)) {
-    // Se já for uma URL do Cloudinary e o usuário ativou recorte de fundo, injeta a transformação
     if (
       removeBackground &&
       raw.includes('res.cloudinary.com/') &&
@@ -69,24 +64,27 @@ export const PRODUCTS = [
     name: 'Corset Cropped Acetinado',
     shortName: 'Corset Acetinado',
     category: 'Tops • Night & Street',
+    clothType: 'upper',
     price: 5900,
     color: '#D47A6A',
     colorDeep: '#96473A',
     colorSoft: '#F3DFDA',
     bgTint: '#E6BFB6',
     accentText: '#4F221A',
-    defaultFrontImage: '/roupas/corset-terracota.png',
+    defaultFrontImage: '/roupas/corset-terracota.jpg',
     description:
-      'Terracotta satin structured cropped corset top with sweetheart neckline, thin spaghetti straps, vertical couture boning seams, and sleek fitted waist',
+      'Terracotta satin structured cropped corset top with sweetheart neckline, thin spaghetti straps and vertical couture boning seams',
     fabricHeadline: 'CETIM ESTRUTURADO. BARBATANAS & DECOTE CORAÇÃO.',
     fabricTitle: 'Cetim Duchesse Stretch',
     fabricDescription:
-      'Modelagem estruturada com barbatanas flexíveis, alças finas reguláveis e decote coração que valoriza o colo. O brilho acetinado urbano perfeito do café ao after.',
+      'Modelagem estruturada com barbatanas flexíveis, alças finas reguláveis e decote coração que valoriza o colo. Combinado a jeans wide leg para um visual street-luxe impecável.',
+    backDetails:
+      'Fechamento traseiro com zíper metálico invisível tom champanhe, costura anatômica princesa e etiqueta tecida HARUMI MODAS TOKYO aplicada no forro interno.',
     composition: '92% Poliéster Acetinado Premium • 8% Elastano • Forro Macio',
     care: 'Lavar à mão em água fria • Não torcer • Secar à sombra',
     hollowBgTop: 'NEW DROP',
     hollowBgBottom: 'ZARA VIBES 01',
-    tagline: 'Modelagem estruturada, alças finas e decote coração em brilho urbano.',
+    tagline: 'Corset estruturado terracota + jeans wide leg em look editorial completo.',
     cloudinaryFrontId: '',
     cloudinaryBackId: '',
     sizeGuide: [
@@ -103,19 +101,22 @@ export const PRODUCTS = [
     name: 'Calça Cargo Parachute',
     shortName: 'Cargo Parachute',
     category: 'Bottoms • Streetwear',
+    clothType: 'lower',
     price: 8900,
     color: '#D5C7B2',
     colorDeep: '#8E7D65',
     colorSoft: '#F2ECE3',
     bgTint: '#E2D6C5',
     accentText: '#463C2E',
-    defaultFrontImage: '/roupas/calca-cargo.png',
+    defaultFrontImage: '/roupas/calca-cargo.jpg',
     description:
-      'Sand beige streetwear parachute cargo pants with adjustable low-to-mid drawstring waist, wide voluminous legs with knee pleats, large 3D side cargo pockets, and cinched elastic ankle cuffs',
+      'Sand beige streetwear parachute cargo pants with adjustable drawstring waist, wide voluminous legs with knee pleats, large 3D side cargo pockets, and cinched elastic ankle cuffs',
     fabricHeadline: 'NYLON TECHNICAL LEVE. VOLUME STREETWEAR REAL.',
     fabricTitle: 'Ripstop Cotton-Nylon Ultraleve',
     fabricDescription:
       'Cintura baixa ou média ajustável por cordão com ponteiras metálicas, bolsos cargo 3D laterais volumosos, pregas anatômicas nos joelhos e punho franzido com stopper.',
+    backDetails:
+      'Pala anatômica traseira com dois bolsos embutidos de lapela, elástico ajustável no cós e etiqueta de cetim HARUMI MODAS costurada no interior da cintura.',
     composition: '68% Algodão Technical • 32% Poliamida Ripstop',
     care: 'Lavar à máquina no ciclo delicado frio • Passar em temperatura baixa',
     hollowBgTop: 'FIT CHECK',
@@ -137,19 +138,22 @@ export const PRODUCTS = [
     name: 'Jaqueta Bomber Oversized',
     shortName: 'Bomber Oversized',
     category: 'Outerwear • Drop 01',
+    clothType: 'upper',
     price: 11500,
     color: '#8FA696',
     colorDeep: '#516858',
     colorSoft: '#E3ECE6',
     bgTint: '#C2D3C7',
     accentText: '#233328',
-    defaultFrontImage: '/roupas/jaqueta-bomber.png',
+    defaultFrontImage: '/roupas/jaqueta-bomber.jpg',
     description:
       'Sage military green oversized streetwear bomber jacket with metallic front zipper, puffed ruched sleeves with utility bicep pocket, ribbed baseball collar, and cropped ribbed hem',
     fabricHeadline: 'NYLON ACETINADO MILITAR. MANGAS BUFANTES & ZÍPER METAL.',
     fabricTitle: 'Nylon Flight Satin & Ribana Pesada',
     fabricDescription:
       'Silhueta oversized com ombros caídos, zíper metálico polido, mangas bufantes com costura franzida, bolso utilitário no braço e acabamento em gola e punhos ribana.',
+    backDetails:
+      'Costas com pala reta estruturada, franzido suave na barra em ribana pesada e etiqueta tecida HARUMI MODAS • TOKYO aplicada na nuca interna.',
     composition: '100% Poliamida Flight Satin • Forro Matelassê Leve • Ribana 2x2',
     care: 'Limpeza suave com pano úmido ou lavagem a seco',
     hollowBgTop: 'STREET LUXE',
@@ -171,19 +175,22 @@ export const PRODUCTS = [
     name: 'Conjunto Ribbed Cut-Out',
     shortName: 'Ribbed Cut-Out',
     category: 'Co-Ord Set • Trend',
+    clothType: 'overall',
     price: 7800,
     color: '#E295A8',
     colorDeep: '#A35469',
     colorSoft: '#F8E3E9',
     bgTint: '#EDCAD3',
     accentText: '#542030',
-    defaultFrontImage: '/roupas/conjunto-ribbed.png',
+    defaultFrontImage: '/roupas/conjunto-ribbed.jpg',
     description:
       'Bubblegum chic pink two-piece ribbed knit co-ord set featuring an asymmetric one-shoulder cut-out cropped top paired with a bodycon fitted midi skirt with a high side slit',
     fabricHeadline: 'MALHA CANELADA PREMIUM. RECORTE ASSIMÉTRICO + FENDA.',
     fabricTitle: 'Ribbed Modal Stretch 320g',
     fabricDescription:
       'Conjunto de duas peças em malha canelada de toque gelado que esculpe sem marcar: top cropped assimétrico com recorte cut-out moderno + saia midi justa com fenda lateral.',
+    backDetails:
+      'Costas limpas em malha canelada contínua com costura plana antifricção, cós anatômico duplo e etiqueta minimalista HARUMI MODAS no interior da peça.',
     composition: '90% Modal Canelado Premium • 10% Elastano High-Recovery',
     care: 'Lavar à mão ou saquinho protetor em ciclo frio • Secar na horizontal',
     hollowBgTop: 'ZARA VIBES',
@@ -205,19 +212,22 @@ export const PRODUCTS = [
     name: 'Vestido Mini Drapeado Ônix',
     shortName: 'Mini Drapeado Ônix',
     category: 'Night Out • Club Luxe',
+    clothType: 'overall',
     price: 6900,
     color: '#7D7A85',
     colorDeep: '#3F3C47',
     colorSoft: '#E5E4E8',
     bgTint: '#C4C1CA',
     accentText: '#232129',
-    defaultFrontImage: '/roupas/vestido-onix.png',
+    defaultFrontImage: '/roupas/vestido-onix.jpg',
     description:
       'Graphite onyx metallic-sheen draped mini dress with asymmetric spaghetti straps, bodycon ruched gathers across the waist and hips, and adjustable side drawstring tie for a chic night-out look',
     fabricHeadline: 'MALHA FLUIDA ÔNIX. DRAPEADO AJUSTÁVEL PARA A NOITE.',
     fabricTitle: 'Jersey Fluid Acetinado Ônix',
     fabricDescription:
       'Alças assimétricas ultrafinas, drapeado lateral ajustável por cordão que permite regular o comprimento e brilho grafite sutil criado para dominar a noite.',
+    backDetails:
+      'Decote posterior reto elegante, drapeado contínuo valorizando a silhueta, zíper oculto e etiqueta tecida HARUMI MODAS TOKYO aplicada internamente.',
     composition: '88% Poliamida Fluida Acetinada • 12% Elastano',
     care: 'Lavar à mão em água fria • Secar à sombra',
     hollowBgTop: 'NIGHT OUT',
@@ -234,126 +244,35 @@ export const PRODUCTS = [
   }
 ];
 
-const backSpecCache = new Map();
-
 /**
- * Gera verso editorial minimalista (ficha técnica + etiqueta tecida HARUMI MODAS)
- * caso o usuário não tenha cadastrado uma foto separada de costas no Cloudinary.
- */
-export function generateBackEditorialCard(product) {
-  if (backSpecCache.has(product.id)) return backSpecCache.get(product.id);
-  if (typeof document === 'undefined') return '';
-
-  const W = 900;
-  const H = 1200;
-  const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext('2d');
-
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, '#FAF7F3');
-  bg.addColorStop(0.55, product.colorSoft);
-  bg.addColorStop(1, product.bgTint);
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
-
-  // Etiqueta tecida de cetim champanhe no topo central
-  const lw = 340;
-  const lh = 118;
-  const lx = (W - lw) / 2;
-  const ly = 140;
-
-  ctx.save();
-  ctx.shadowColor = 'rgba(24,22,21,0.18)';
-  ctx.shadowBlur = 24;
-  ctx.shadowOffsetY = 8;
-  ctx.fillStyle = '#F7F3EC';
-  ctx.fillRect(lx, ly, lw, lh);
-  ctx.restore();
-
-  ctx.strokeStyle = '#C9B290';
-  ctx.lineWidth = 2.5;
-  ctx.strokeRect(lx + 10, ly + 10, lw - 20, lh - 20);
-
-  ctx.fillStyle = '#181615';
-  ctx.textAlign = 'center';
-  ctx.font = '700 32px "Syne", sans-serif';
-  ctx.fillText('HARUMI MODAS', W / 2, ly + 58);
-  ctx.fillStyle = '#8C7554';
-  ctx.font = '600 16px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText('TOKYO • STREET LUXE D2C', W / 2, ly + 90);
-
-  // Detalhes editoriais do verso
-  ctx.fillStyle = 'rgba(24,22,21,0.08)';
-  ctx.font = '800 220px "Syne", sans-serif';
-  ctx.fillText(product.code, W / 2, 520);
-
-  ctx.fillStyle = '#181615';
-  ctx.font = '800 36px "Syne", sans-serif';
-  ctx.fillText(product.name.toUpperCase(), W / 2, 620);
-
-  ctx.fillStyle = product.accentText;
-  ctx.font = '600 22px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText(product.fabricTitle.toUpperCase(), W / 2, 675);
-
-  // Bloco de composição e cuidados
-  ctx.fillStyle = 'rgba(255,255,255,0.68)';
-  ctx.beginPath();
-  ctx.roundRect(96, 745, W - 192, 235, 28);
-  ctx.fill();
-
-  ctx.fillStyle = '#8C7554';
-  ctx.font = '700 16px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText('COMPOSIÇÃO & CUIDADOS DO ATELIER', W / 2, 800);
-
-  ctx.fillStyle = '#181615';
-  ctx.font = '500 21px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText(product.composition, W / 2, 855);
-  ctx.fillStyle = 'rgba(24,22,21,0.7)';
-  ctx.font = '400 19px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText(product.care, W / 2, 902);
-  ctx.fillStyle = '#181615';
-  ctx.font = '700 22px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText(`SKU ${product.sku}  •  ${formatYen(product.price)}`, W / 2, 952);
-
-  ctx.fillStyle = 'rgba(24,22,21,0.5)';
-  ctx.font = '600 17px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText('PORTAL LOJAS JP • LOJAJP.COM', W / 2, H - 86);
-
-  const dataUrl = canvas.toDataURL('image/png');
-  backSpecCache.set(product.id, dataUrl);
-  return dataUrl;
-}
-
-/**
- * Resolve a imagem final da peça levando em conta overrides do Gerenciador Cloudinary
- * salvos em localStorage -> IDs fixos no catálogo -> fotografia editorial local de estúdio.
+ * Resolve a imagem final do look levando em conta overrides do Gerenciador Cloudinary
+ * salvos em localStorage -> IDs fixos -> fotografia local `/roupas/*.jpg`.
+ * Sem caixa cinza de etiqueta no 3D: caso não haja foto de costas no Cloudinary,
+ * retorna a própria fotografia editorial do look.
  */
 export function getProductImageUrl(product, side = 'front', customPhotos = null) {
   const custom = customPhotos?.[product.id];
   const removeBg = custom?.removeBg !== false;
 
-  if (side === 'front') {
-    if (custom?.front) {
-      const resolved = resolveCloudinaryOrUrl(custom.front, removeBg);
+  if (side === 'back') {
+    if (custom?.back) {
+      const resolved = resolveCloudinaryOrUrl(custom.back, removeBg);
       if (resolved) return resolved;
     }
-    if (product.cloudinaryFrontId) {
-      const resolved = resolveCloudinaryOrUrl(product.cloudinaryFrontId, true);
+    if (product.cloudinaryBackId) {
+      const resolved = resolveCloudinaryOrUrl(product.cloudinaryBackId, true);
       if (resolved) return resolved;
     }
-    return product.defaultFrontImage;
+    // Sem caixa cinza de texto: mantém a fotografia real limpa se não houver foto de costas
   }
 
-  // Verso / Costas
-  if (custom?.back) {
-    const resolved = resolveCloudinaryOrUrl(custom.back, removeBg);
+  if (custom?.front) {
+    const resolved = resolveCloudinaryOrUrl(custom.front, removeBg);
     if (resolved) return resolved;
   }
-  if (product.cloudinaryBackId) {
-    const resolved = resolveCloudinaryOrUrl(product.cloudinaryBackId, true);
+  if (product.cloudinaryFrontId) {
+    const resolved = resolveCloudinaryOrUrl(product.cloudinaryFrontId, true);
     if (resolved) return resolved;
   }
-  return generateBackEditorialCard(product);
+  return product.defaultFrontImage;
 }

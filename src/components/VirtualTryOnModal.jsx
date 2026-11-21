@@ -28,7 +28,7 @@ export default function VirtualTryOnModal({
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
-  const [customApiKey, setCustomApiKey] = useState('');
+  const [customHfToken, setCustomHfToken] = useState('');
 
   useEffect(() => {
     setResult(null);
@@ -62,7 +62,7 @@ export default function VirtualTryOnModal({
     handleFile(file);
   };
 
-  const handleGenerate = async (overrideKey = customApiKey) => {
+  const handleGenerate = async (overrideToken = customHfToken) => {
     if (!userPhoto || isLoading) return;
     setIsLoading(true);
     setErrorMsg('');
@@ -73,13 +73,13 @@ export default function VirtualTryOnModal({
         userPhoto,
         product,
         garmentRefUrl,
-        overrideKey
+        overrideToken
       );
       setResult(output);
     } catch (err) {
       setErrorMsg(
         err?.message ||
-          'Erro desconhecido ao chamar o modelo multimodal do Gemini.'
+          'Não foi possível concluir a geração nos Spaces IDM-VTON / CatVTON.'
       );
     } finally {
       setIsLoading(false);
@@ -103,15 +103,16 @@ export default function VirtualTryOnModal({
         {/* Cabeçalho */}
         <div className="flex items-start justify-between gap-4 border-b border-[#181615]/10 pb-5">
           <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#181615] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.26em] text-[#D8C7B4]">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#181615] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-[#D8C7B4]">
               <Sparkles className="h-3 w-3" />
-              FIT CHECK IA • Gemini Multimodal
+              Provador Virtual Gratuito • IDM-VTON → CatVTON
             </span>
             <h3 className="mt-2 font-display text-2xl sm:text-3xl font-extrabold uppercase tracking-[-0.02em] text-[#181615]">
               {product.name}
             </h3>
             <p className="text-xs sm:text-sm text-[#181615]/65">
-              Envie sua foto para vestir esta peça mantendo rosto, cabelo, pose e iluminação reais.
+              Envie sua foto para vestir este look com fallback duplo automático entre{' '}
+              <strong>IDM-VTON</strong> e <strong>CatVTON</strong> (Hugging Face).
             </p>
           </div>
 
@@ -125,49 +126,48 @@ export default function VirtualTryOnModal({
           </button>
         </div>
 
-        {/* Alerta de Diagnóstico + Campo Discreto "Testar com outra API Key" */}
+        {/* Alerta de Diagnóstico + Campo Discreto para Testar com HF_TOKEN */}
         {errorMsg && (
-          <div className="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 text-left text-xs text-red-900 shadow-sm space-y-3">
+          <div className="mt-5 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-left text-xs text-amber-950 shadow-sm space-y-3">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
               <div className="space-y-1">
-                <p className="font-bold uppercase tracking-[0.14em] text-red-700">
-                  Erro na API do Gemini
+                <p className="font-bold uppercase tracking-[0.14em] text-amber-800">
+                  Retorno do Motor Virtual Try-On (Hugging Face)
                 </p>
-                <p className="font-mono text-[11px] leading-relaxed break-words text-red-900/90">
+                <p className="font-mono text-[11px] leading-relaxed break-words text-amber-950/90">
                   {errorMsg}
                 </p>
               </div>
             </div>
 
-            {/* Campo discreto para testar outra API Key imediatamente */}
-            <div className="rounded-xl border border-red-200 bg-white/85 p-3">
+            <div className="rounded-xl border border-amber-200 bg-white/90 p-3">
               <label className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[#181615]/75">
                 <KeyRound className="h-3.5 w-3.5 text-[#8C7554]" />
-                <span>Testar com outra API Key (Gemini AI Studio)</span>
+                <span>Testar com outro HF_TOKEN (Hugging Face hf_...)</span>
               </label>
               <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="password"
-                  value={customApiKey}
-                  onChange={(e) => setCustomApiKey(e.target.value)}
-                  placeholder="Cole sua chave AIzaSy... ou AQ... aqui para testar agora"
+                  value={customHfToken}
+                  onChange={(e) => setCustomHfToken(e.target.value)}
+                  placeholder="Cole seu token hf_... para prioridade na fila GPU"
                   className="flex-1 rounded-lg border border-[#181615]/20 bg-[#F7F4F0] px-3 py-2 font-mono text-xs text-[#181615] focus:border-[#181615] focus:outline-none"
                 />
                 <button
                   type="button"
-                  disabled={!customApiKey.trim() || !userPhoto || isLoading}
-                  onClick={() => handleGenerate(customApiKey.trim())}
+                  disabled={!customHfToken.trim() || !userPhoto || isLoading}
+                  onClick={() => handleGenerate(customHfToken.trim())}
                   className="rounded-lg bg-[#181615] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#F7F4F0] hover:bg-[#2F2A27] disabled:opacity-45"
                 >
-                  Testar Agora
+                  Tentar Novamente
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Estado 1: Upload + Preview da Foto Editorial da Peça */}
+        {/* Estado 1: Upload + Preview do Look */}
         {!result ? (
           <div className="mt-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
             <div className="md:col-span-7 flex flex-col">
@@ -219,16 +219,16 @@ export default function VirtualTryOnModal({
                     />
 
                     {isLoading && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#181615]/78 px-6 text-center text-[#F7F4F0] backdrop-blur-sm">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#181615]/80 px-6 text-center text-[#F7F4F0] backdrop-blur-sm">
                         <div className="relative mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[#D8C7B4]/50">
                           <Sparkles className="h-7 w-7 animate-pulse text-[#D8C7B4]" />
                           <span className="absolute inset-0 rounded-full border-2 border-t-[#D8C7B4] border-transparent animate-spin" />
                         </div>
                         <p className="font-display text-lg font-bold uppercase tracking-[0.06em]">
-                          A IA do Gemini está gerando sua prévia...
+                          Gerando sua prévia no Provador Virtual IA...
                         </p>
                         <p className="mt-1.5 text-xs text-[#F7F4F0]/75">
-                          Vestindo {product.name} com caimento e iluminação realistas
+                          Processando em GPU gratuita (IDM-VTON com fallback automático para CatVTON). Pode levar 15–45s.
                         </p>
                       </div>
                     )}
@@ -242,8 +242,8 @@ export default function VirtualTryOnModal({
                       Arraste sua foto ou clique para escolher
                     </p>
                     <p className="mt-2 text-xs leading-relaxed text-[#181615]/60">
-                      Prefira foto de frente com boa iluminação (meio corpo ou corpo inteiro)
-                      para um resultado fotográfico impecável.
+                      Prefira foto de frente de corpo inteiro ou meio corpo com boa luz
+                      para o melhor ajuste do caimento.
                     </p>
                     <button
                       type="button"
@@ -261,15 +261,15 @@ export default function VirtualTryOnModal({
               </div>
             </div>
 
-            {/* 2. Peça Editorial Selecionada */}
+            {/* 2. Look de Referência */}
             <div className="md:col-span-5 flex flex-col justify-between rounded-2xl border border-[#181615]/10 bg-white/80 p-5">
               <div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#8C7554]">
-                    2. Peça de Referência
+                    2. Look Selecionado
                   </span>
                   <span className="rounded-full bg-[#181615]/8 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#181615]/70">
-                    Lookbook
+                    Full Body
                   </span>
                 </div>
 
@@ -325,7 +325,7 @@ export default function VirtualTryOnModal({
               >
                 <Sparkles className="h-4 w-4 text-[#D8C7B4]" />
                 <span>
-                  {isLoading ? 'Gerando no Gemini...' : 'Gerar Prévia com IA Gemini'}
+                  {isLoading ? 'Processando Try-On IA...' : 'Provar Look Agora (IA)'}
                 </span>
               </button>
             </div>
@@ -336,7 +336,7 @@ export default function VirtualTryOnModal({
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-2.5 text-xs text-emerald-950">
               <span className="inline-flex items-center gap-2 font-semibold">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                Prévia real gerada via Google Gemini ({result.model})
+                Prévia real gerada via {result.engine}
               </span>
               <span className="font-bold text-[#181615]">
                 Tam. {selectedSize} • {formatYen(product.price)}

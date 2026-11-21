@@ -1,8 +1,8 @@
 /**
- * Converte dataURL ou URL local/CORS (`/roupas/*.png` ou Cloudinary) para { mimeType, base64 }
- * reduzindo fotos gigantes da câmera para max 1280px JPEG para manter o payload leve e rápido.
+ * Converte dataURL ou URL local/CORS (`/roupas/*.jpg` ou Cloudinary) para { mimeType, base64 }
+ * otimizando fotos grandes da câmera para até 1024px JPEG para inferência rápida no IDM-VTON / CatVTON.
  */
-async function compressDataUrlIfLarge(dataUrl, maxDim = 1280) {
+async function compressDataUrlIfLarge(dataUrl, maxDim = 1024) {
   if (typeof document === 'undefined' || !dataUrl.startsWith('data:image/')) {
     return dataUrl;
   }
@@ -42,7 +42,7 @@ async function toInlineImageData(sourceUrl) {
     );
     if (!res.ok) {
       throw new Error(
-        `Falha ao carregar imagem da peça (HTTP ${res.status}).`
+        `Falha ao carregar imagem do look selecionado (HTTP ${res.status}).`
       );
     }
     const blob = await res.blob();
@@ -55,7 +55,7 @@ async function toInlineImageData(sourceUrl) {
     });
   }
 
-  const optimizedUrl = await compressDataUrlIfLarge(workingUrl, 1280);
+  const optimizedUrl = await compressDataUrlIfLarge(workingUrl, 1024);
   const commaIdx = optimizedUrl.indexOf(',');
   const header = optimizedUrl.slice(0, commaIdx);
   const base64 = optimizedUrl.slice(commaIdx + 1);
@@ -68,14 +68,13 @@ async function toInlineImageData(sourceUrl) {
 }
 
 /**
- * Provador Virtual Multimodal REAL via Backend Serverless `/api/tryon` (Vercel + Vite dev proxy)
- * usando chamada REST direta compatível com chaves `AQ.` e `AIzaSy`.
+ * Provador Virtual Gratuito via `/api/tryon` (Hugging Face Spaces: IDM-VTON -> fallback CatVTON).
  */
 export async function generateVirtualTryOn(
   userPhotoDataUrl,
   product,
   garmentImageUrl,
-  overrideApiKey = ''
+  overrideHfToken = ''
 ) {
   const [userImg, garmentImg] = await Promise.all([
     toInlineImageData(userPhotoDataUrl),
@@ -92,7 +91,8 @@ export async function generateVirtualTryOn(
       garmentMimeType: garmentImg.mimeType,
       productName: product.name,
       productDescription: product.description,
-      overrideApiKey: (overrideApiKey || '').trim()
+      clothType: product.clothType || 'overall',
+      overrideHfToken: (overrideHfToken || '').trim()
     })
   });
 
@@ -113,6 +113,6 @@ export async function generateVirtualTryOn(
 
   return {
     imageUrl: data.imageUrl,
-    model: data.model || 'gemini-2.5-flash-image'
+    engine: data.engine || 'yisol/IDM-VTON'
   };
 }

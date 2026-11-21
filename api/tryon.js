@@ -1,12 +1,10 @@
 // Vercel Serverless Function: /api/tryon
-// Chamada REST direta para o Google Gemini Multimodal Image Generation (compatível com chaves AQ. e AIzaSy)
+// Provador Virtual Gratuito via Hugging Face Spaces (@gradio/client)
+// Fallback duplo automático: yisol/IDM-VTON -> zhengchong/CatVTON
 
-const CANDIDATE_MODELS = [
-  'gemini-2.5-flash-image',
-  'gemini-2.0-flash-exp-image-generation',
-  'gemini-3.1-flash-image',
-  'gemini-3.1-flash-lite-image'
-];
+import { Client } from '@gradio/client';
+
+export const maxDuration = 60;
 
 export const config = {
   api: {
@@ -16,8 +14,106 @@ export const config = {
   }
 };
 
+function base64ToBlob(base64, mimeType = 'image/jpeg') {
+  const buffer = Buffer.from(base64, 'base64');
+  return new Blob([buffer], { type: mimeType });
+}
+
+async function resolveResultToDataUrl(rawOutput, hfToken) {
+  if (!rawOutput) {
+    throw new Error('O Space não retornou imagem.');
+  }
+
+  if (typeof rawOutput === 'string') {
+    if (rawOutput.startsWith('data:image/')) {
+      return rawOutput;
+    }
+    const res = await fetch(
+      rawOutput,
+      hfToken ? { headers: { Authorization: `Bearer ${hfToken}` } } : undefined
+    );
+    if (!res.ok) {
+      throw new Error(`Falha ao baixar imagem gerada (HTTP ${res.status}).`);
+    }
+    const arrBuf = await res.arrayBuffer();
+    const mime = res.headers.get('content-type') || 'image/png';
+    return `data:${mime};base64,${Buffer.from(arrBuf).toString('base64')}`;
+  }
+
+  const imageUrl = rawOutput?.url || rawOutput?.path;
+  if (!imageUrl) {
+    throw new Error('Formato de resposta do Space sem URL de imagem.');
+  }
+
+  const res = await fetch(
+    imageUrl,
+    hfToken ? { headers: { Authorization: `Bearer ${hfToken}` } } : undefined
+  );
+  if (!res.ok) {
+    throw new Error(`Falha ao baixar imagem gerada (HTTP ${res.status}).`);
+  }
+  const arrBuf = await res.arrayBuffer();
+  const mime = res.headers.get('content-type') || 'image/png';
+  return `data:${mime};base64,${Buffer.from(arrBuf).toString('base64')}`;
+}
+
+async function tryIdmVton({
+  userBlob,
+  garmentBlob,
+  garmentDescription,
+  hfToken
+}) {
+  const client = await Client.connect(
+    'yisol/IDM-VTON',
+    hfToken ? { hf_token: hfToken } : undefined
+  );
+
+  const result = await client.predict('/tryon', [
+    { background: userBlob, layers: [], composite: null },
+    garmentBlob,
+    garmentDescription,
+    true, // auto-mask
+    false, // auto-crop
+    30, // denoise steps
+    42 // seed
+  ]);
+
+  const firstOutput = Array.isArray(result?.data) ? result.data[0] : result?.data;
+  const imageUrl = await resolveResultToDataUrl(firstOutput, hfToken);
+  return { imageUrl, engine: 'yisol/IDM-VTON' };
+}
+
+async function tryCatVton({
+  userBlob,
+  garmentBlob,
+  clothType,
+  hfToken
+}) {
+  const client = await Client.connect(
+    'zhengchong/CatVTON',
+    hfToken ? { hf_token: hfToken } : undefined
+  );
+
+  const safeClothType = ['upper', 'lower', 'overall'].includes(clothType)
+    ? clothType
+    : 'overall';
+
+  const result = await client.predict('/submit_function', [
+    { background: userBlob, layers: [], composite: null },
+    garmentBlob,
+    safeClothType,
+    30, // num_inference_steps
+    2.5, // guidance_scale
+    42, // seed
+    'result only'
+  ]);
+
+  const firstOutput = Array.isArray(result?.data) ? result.data[0] : result?.data;
+  const imageUrl = await resolveResultToDataUrl(firstOutput, hfToken);
+  return { imageUrl, engine: 'zhengchong/CatVTON' };
+}
+
 export default async function handler(req, res) {
-  // CORS headers seguros
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -36,122 +132,60 @@ export default async function handler(req, res) {
       userImageBase64,
       userMimeType = 'image/jpeg',
       garmentImageBase64,
-      garmentMimeType = 'image/png',
-      productName = 'Harumi Modas garment',
+      garmentMimeType = 'image/jpeg',
+      productName = 'Harumi Modas outfit',
       productDescription = '',
-      overrideApiKey = ''
+      clothType = 'overall',
+      overrideHfToken = ''
     } = body;
-
-    const apiKey = (
-      overrideApiKey ||
-      process.env.GEMINI_API_KEY ||
-      process.env.VITE_GEMINI_API_KEY ||
-      ''
-    ).trim();
-
-    if (!apiKey) {
-      return res.status(400).json({
-        error:
-          'GEMINI_API_KEY não configurada no servidor Vercel. Configure GEMINI_API_KEY nas variáveis de ambiente ou teste com uma chave no campo abaixo.'
-      });
-    }
 
     if (!userImageBase64 || !garmentImageBase64) {
       return res.status(400).json({
-        error: 'É necessário enviar userImageBase64 e garmentImageBase64.'
+        error: 'É necessário enviar a foto da cliente e a imagem do look selecionado.'
       });
     }
 
-    const prompt = `Virtual try-on fashion photography: Dress the person from the first image wearing the exact clothing item shown in the second image (${productName} - ${productDescription}). Keep the person's exact face, identity, hair, skin tone, body pose, and background completely unchanged. Replace only their current outfit with the new garment, adapting natural fabric folds, shadows, and realistic lighting to fit their body seamlessly.`;
+    const hfToken = (overrideHfToken || process.env.HF_TOKEN || '').trim();
+    const userBlob = base64ToBlob(userImageBase64, userMimeType);
+    const garmentBlob = base64ToBlob(garmentImageBase64, garmentMimeType);
+    const garmentDescription = `${productName} — ${productDescription}`.trim();
 
-    const payload = {
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              inline_data: {
-                mime_type: userMimeType,
-                data: userImageBase64
-              }
-            },
-            {
-              inline_data: {
-                mime_type: garmentMimeType,
-                data: garmentImageBase64
-              }
-            },
-            { text: prompt }
-          ]
-        }
-      ],
-      generationConfig: {
-        responseModalities: ['IMAGE', 'TEXT']
-      }
-    };
+    const errors = [];
 
-    const attemptErrors = [];
-
-    for (const model of CANDIDATE_MODELS) {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(
-        apiKey
-      )}`;
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey
-        },
-        body: JSON.stringify(payload)
+    // 1ª Tentativa: yisol/IDM-VTON
+    try {
+      const idmResult = await tryIdmVton({
+        userBlob,
+        garmentBlob,
+        garmentDescription,
+        hfToken
       });
-
-      const rawText = await response.text();
-      let data = null;
-      try {
-        data = JSON.parse(rawText);
-      } catch {
-        data = { raw: rawText };
-      }
-
-      if (!response.ok) {
-        const errMsg =
-          data?.error?.message ||
-          data?.raw?.slice(0, 260) ||
-          `HTTP ${response.status}`;
-        attemptErrors.push(`[${model} • HTTP ${response.status}] ${errMsg}`);
-        continue;
-      }
-
-      const candidate = data?.candidates?.[0];
-      const parts = candidate?.content?.parts || [];
-      const imagePart = parts.find(
-        (p) => p?.inlineData?.data || p?.inline_data?.data
-      );
-
-      if (imagePart) {
-        const inline = imagePart.inlineData || imagePart.inline_data;
-        const outMime = inline.mimeType || inline.mime_type || 'image/png';
-        return res.status(200).json({
-          imageUrl: `data:${outMime};base64,${inline.data}`,
-          model
-        });
-      }
-
-      const textFeedback = parts
-        .filter((p) => p?.text)
-        .map((p) => p.text)
-        .join(' ')
-        .trim();
-      attemptErrors.push(
-        `[${model}] Nenhuma imagem retornada${
-          candidate?.finishReason ? ` (${candidate.finishReason})` : ''
-        }${textFeedback ? `: ${textFeedback}` : ''}`
+      return res.status(200).json(idmResult);
+    } catch (idmErr) {
+      errors.push(
+        `[yisol/IDM-VTON] ${idmErr?.message || String(idmErr)}`
       );
     }
 
-    return res.status(502).json({
-      error: attemptErrors.join(' | ')
+    // 2ª Tentativa (Fallback automático): zhengchong/CatVTON
+    try {
+      const catResult = await tryCatVton({
+        userBlob,
+        garmentBlob,
+        clothType,
+        hfToken
+      });
+      return res.status(200).json(catResult);
+    } catch (catErr) {
+      errors.push(
+        `[zhengchong/CatVTON] ${catErr?.message || String(catErr)}`
+      );
+    }
+
+    return res.status(503).json({
+      error: `Os dois motores gratuitos do Hugging Face retornaram indisponibilidade ou fila cheia no momento. Detalhes: ${errors.join(
+        ' | '
+      )}`
     });
   } catch (err) {
     return res.status(500).json({

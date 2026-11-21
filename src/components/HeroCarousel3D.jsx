@@ -1,6 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { ContactShadows, Environment, Lightformer } from '@react-three/drei';
+import {
+  ContactShadows,
+  Environment,
+  Lightformer,
+  MeshReflectorMaterial
+} from '@react-three/drei';
 import * as THREE from 'three';
 import {
   ChevronLeft,
@@ -13,7 +18,7 @@ import {
 import { PRODUCTS, formatYen, getProductImageUrl } from '../data/products';
 import EditorialGarment3D from './EditorialGarment3D';
 
-function EditorialArcSlot({
+function RunwayArcSlot({
   product,
   frontUrl,
   backUrl,
@@ -31,18 +36,16 @@ function EditorialArcSlot({
     const posOffset = slotOffset - visualDelta;
     const absPos = Math.abs(posOffset);
 
-    const targetX = posOffset * 2.55;
-    const targetZ = 1.2 - Math.pow(absPos, 1.36) * 1.12;
-    const targetY =
-      (isCenter ? 0.1 : -absPos * 0.08) +
-      Math.sin(t * 1.3 + slotOffset * 1.1) * (isCenter ? 0.055 : 0.028);
+    // Arco espacial 3D sobre a passarela com profundidade real
+    const targetX = posOffset * 2.68;
+    const targetZ = 1.25 - Math.pow(absPos, 1.38) * 1.18;
+    const targetY = isCenter ? 0.08 : -absPos * 0.04;
     const targetRotY =
-      -posOffset * 0.36 +
-      (isCenter ? (parallax?.x || 0) * 0.16 + Math.sin(t * 0.55) * 0.07 : 0);
-    const targetRotZ = -posOffset * 0.03;
+      -posOffset * 0.34 +
+      (isCenter ? (parallax?.x || 0) * 0.14 + Math.sin(t * 0.45) * 0.05 : 0);
 
-    const baseScale = Math.max(0.66, 1.14 - absPos * 0.155);
-    const targetScale = baseScale * (hovered ? 1.05 : 1.0);
+    const baseScale = Math.max(0.66, 1.08 - absPos * 0.145);
+    const targetScale = baseScale * (hovered ? 1.04 : 1.0);
 
     if (groupRef.current) {
       const k = Math.min(1, delta * 8.5);
@@ -50,7 +53,6 @@ function EditorialArcSlot({
       groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, targetY, k);
       groupRef.current.position.z = THREE.MathUtils.lerp(groupRef.current.position.z, targetZ, k);
       groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetRotY, k);
-      groupRef.current.rotation.z = THREE.MathUtils.lerp(groupRef.current.rotation.z, targetRotZ, k);
       const nextScale = THREE.MathUtils.lerp(groupRef.current.scale.x, targetScale, k);
       groupRef.current.scale.setScalar(nextScale);
     }
@@ -76,21 +78,42 @@ function EditorialArcSlot({
       <EditorialGarment3D
         frontUrl={frontUrl}
         backUrl={backUrl}
-        accentColor={product.colorSoft}
-        width={2.35}
-        height={3.14}
-        waveIntensity={isCenter ? 0.048 : 0.022}
+        accentColor={product.color}
+        width={2.38}
+        height={3.18}
+        showPedestal={true}
+        isHighlighted={isCenter}
         parallax={isCenter ? parallax : { x: 0, y: 0 }}
       />
     </group>
   );
 }
 
+function RunwayCameraRig({ parallax }) {
+  useFrame((state, delta) => {
+    const targetX = (parallax?.x || 0) * 0.38;
+    const targetY = 0.22 + (parallax?.y || 0) * -0.18;
+    state.camera.position.x = THREE.MathUtils.lerp(
+      state.camera.position.x,
+      targetX,
+      Math.min(1, delta * 3.5)
+    );
+    state.camera.position.y = THREE.MathUtils.lerp(
+      state.camera.position.y,
+      targetY,
+      Math.min(1, delta * 3.5)
+    );
+    state.camera.lookAt(0, -0.05, 0);
+  });
+  return null;
+}
+
 function ArcCarouselScene({
   scrollFloatRef,
   onSelectOffset,
   customPhotos,
-  parallax
+  parallax,
+  activeProduct
 }) {
   const [centerInt, setCenterInt] = useState(0);
   const [visualDelta, setVisualDelta] = useState(0);
@@ -104,38 +127,51 @@ function ArcCarouselScene({
     setVisualDelta(val - nearest);
   });
 
-  const slots = [-3, -2, -1, 0, 1, 2, 3];
+  const slots = [-2, -1, 0, 1, 2];
   const total = PRODUCTS.length;
 
   return (
     <>
-      <ambientLight intensity={0.82} />
-      <directionalLight position={[4, 7, 7]} intensity={0.72} color="#FFFBF5" />
-      <directionalLight position={[-5, 2, 4]} intensity={0.35} color="#F7E5D3" />
+      <RunwayCameraRig parallax={parallax} />
+
+      {/* Iluminação de Estúdio & Passarela */}
+      <ambientLight intensity={0.76} />
+      <spotLight
+        position={[0, 7.5, 6.5]}
+        angle={0.52}
+        penumbra={0.85}
+        intensity={1.5}
+        color="#FFF9F0"
+        castShadow
+      />
+      <directionalLight position={[5, 6, 5]} intensity={0.55} color="#FFFBF4" />
+      <directionalLight position={[-5, 3, 4]} intensity={0.35} color={activeProduct.colorSoft} />
+
       <Environment resolution={256}>
         <Lightformer
           form="rect"
-          intensity={0.8}
-          position={[0, 5, 4]}
+          intensity={0.85}
+          position={[0, 6, 4]}
           scale={[10, 4, 1]}
           color="#FFF9F0"
         />
         <Lightformer
           form="ring"
-          intensity={0.55}
+          intensity={0.6}
           position={[-5, 2, 3]}
           scale={5}
           color="#F7DEC8"
         />
       </Environment>
 
-      <group position={[0, 0.08, 0]}>
+      {/* Modelos de Corpo Inteiro no Arco 3D sobre Pedestais */}
+      <group position={[0, 0.14, 0]}>
         {slots.map((slotOffset) => {
           const virtualIndex = centerInt + slotOffset;
           const productIndex = ((virtualIndex % total) + total) % total;
           const product = PRODUCTS[productIndex];
           return (
-            <EditorialArcSlot
+            <RunwayArcSlot
               key={virtualIndex}
               product={product}
               frontUrl={getProductImageUrl(product, 'front', customPhotos)}
@@ -150,11 +186,33 @@ function ArcCarouselScene({
         })}
       </group>
 
-      <ContactShadows
+      {/* Piso Reflexivo Suave da Passarela 3D */}
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
         position={[0, -1.78, 0]}
-        opacity={0.28}
+        receiveShadow
+      >
+        <planeGeometry args={[36, 22]} />
+        <MeshReflectorMaterial
+          blur={[320, 120]}
+          resolution={512}
+          mixBlur={0.9}
+          mixStrength={0.42}
+          roughness={0.82}
+          depthScale={0.5}
+          minDepthThreshold={0.4}
+          maxDepthThreshold={1.4}
+          color={activeProduct.colorSoft}
+          metalness={0.08}
+          mirror={0.32}
+        />
+      </mesh>
+
+      <ContactShadows
+        position={[0, -1.76, 0]}
+        opacity={0.38}
         scale={16}
-        blur={2.6}
+        blur={2.2}
         far={4.5}
         color="#181615"
       />
@@ -327,18 +385,18 @@ export default function HeroCarousel3D({
         key={bgLayers.key}
         className="animate-radial-reveal absolute inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(circle at 50% 48%, #FAF7F2 0%, ${activeProduct.colorSoft} 46%, ${activeProduct.bgTint} 100%)`
+          background: `radial-gradient(circle at 50% 45%, #FAF7F2 0%, ${activeProduct.colorSoft} 48%, ${activeProduct.bgTint} 100%)`
         }}
       />
 
       {/* Tipografia Editorial Urbana Gigante ao Fundo */}
-      <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 overflow-hidden text-center">
+      <div className="pointer-events-none absolute inset-x-0 top-[44%] -translate-y-1/2 overflow-hidden text-center">
         <span className="block whitespace-nowrap font-display text-[17vw] sm:text-[13vw] font-extrabold uppercase leading-none tracking-[-0.05em] text-outline-accent">
           {activeProduct.hollowBgTop}
         </span>
       </div>
 
-      {/* Ondas Concêntricas Sutis (Ripple) */}
+      {/* Ondas Concêntricas Sutis */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         {[460, 740, 1040, 1360].map((size, idx) => (
           <div
@@ -362,7 +420,7 @@ export default function HeroCarousel3D({
         }}
       >
         <span className="text-[10px] font-extrabold uppercase tracking-[0.34em] text-[#181615]/60">
-          NEW DROP • LOOKBOOK 26
+          NEW DROP • 3D RUNWAY STAGE
         </span>
         <div className="flex items-center gap-2">
           <span
@@ -382,23 +440,23 @@ export default function HeroCarousel3D({
         }}
       >
         <span className="text-[10px] font-extrabold uppercase tracking-[0.32em] text-[#181615]/55">
-          ZARA VIBES • STREET LUXE
+          ZARA VIBES • CORPO INTEIRO 3D
         </span>
         <span className="font-display text-sm font-bold uppercase tracking-[0.1em] text-[#181615]/80">
           {activeProduct.fabricTitle}
         </span>
       </div>
 
-      {/* Palco 3D Editorial Lookbook com Carrossel em Arco */}
+      {/* Palco 3D Real com Piso Reflexivo, Pedestais e Modelos de Corpo Inteiro */}
       <div
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
-        className="relative z-10 h-[56vh] min-h-[400px] max-h-[600px] w-full cursor-grab active:cursor-grabbing"
+        className="relative z-10 h-[58vh] min-h-[420px] max-h-[620px] w-full cursor-grab active:cursor-grabbing"
       >
         <Canvas
           shadows
-          camera={{ position: [0, 0.1, 6.7], fov: 39 }}
+          camera={{ position: [0, 0.22, 6.85], fov: 39 }}
           dpr={[1, 2]}
           gl={{ alpha: true, antialias: true }}
         >
@@ -407,13 +465,14 @@ export default function HeroCarousel3D({
             onSelectOffset={handleSelectOffset}
             customPhotos={customPhotos}
             parallax={parallax}
+            activeProduct={activeProduct}
           />
         </Canvas>
 
         <button
           type="button"
           onClick={() => stepCarousel(-1)}
-          aria-label="Peça anterior"
+          aria-label="Look anterior"
           className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-[#181615]/15 bg-[#F7F4F0]/80 text-[#181615] backdrop-blur-md transition-all hover:scale-105 hover:bg-[#181615] hover:text-[#F7F4F0]"
         >
           <ChevronLeft className="h-5 w-5" />
@@ -422,7 +481,7 @@ export default function HeroCarousel3D({
         <button
           type="button"
           onClick={() => stepCarousel(1)}
-          aria-label="Próxima peça"
+          aria-label="Próximo look"
           className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-[#181615]/15 bg-[#F7F4F0]/80 text-[#181615] backdrop-blur-md transition-all hover:scale-105 hover:bg-[#181615] hover:text-[#F7F4F0]"
         >
           <ChevronRight className="h-5 w-5" />
@@ -438,7 +497,7 @@ export default function HeroCarousel3D({
                 {formatYen(activeProduct.price)}
               </span>
               <span className="rounded-full border border-[#181615]/15 bg-[#F7F4F0]/80 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-[#181615]/80">
-                EDITORIAL LOOKBOOK
+                FULL LOOK 3D
               </span>
               <span className="text-xs font-medium tracking-[0.04em] text-[#181615]/75">
                 {activeProduct.tagline}
@@ -458,7 +517,7 @@ export default function HeroCarousel3D({
                 }}
                 className="inline-flex items-center gap-2 rounded-full bg-[#181615] px-5 py-2.5 text-xs font-bold uppercase tracking-[0.16em] text-[#F7F4F0] shadow-md transition-all hover:bg-[#312B27]"
               >
-                <span>Fit Check 3D</span>
+                <span>Inspecionar Look 3D</span>
                 <ArrowDownRight className="h-4 w-4" />
               </button>
 
@@ -494,7 +553,6 @@ export default function HeroCarousel3D({
             </div>
           </div>
 
-          {/* Contador Numérico Vazado 01 a 05 */}
           <div
             className="flex items-baseline gap-2 self-end transition-transform duration-300"
             style={{
