@@ -1,54 +1,75 @@
-import { GoogleGenAI } from '@google/genai';
-
 /**
- * Converte dataURL ou URL (local `./garments/...` ou Cloudinary/Unsplash CORS) para { mimeType, base64 }
+ * Converte dataURL ou URL local/CORS (`/roupas/*.png` ou Cloudinary) para { mimeType, base64 }
+ * reduzindo fotos gigantes da câmera para max 1280px JPEG para manter o payload leve e rápido.
  */
+async function compressDataUrlIfLarge(dataUrl, maxDim = 1280) {
+  if (typeof document === 'undefined' || !dataUrl.startsWith('data:image/')) {
+    return dataUrl;
+  }
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const largest = Math.max(img.width, img.height);
+      if (largest <= maxDim) {
+        resolve(dataUrl);
+        return;
+      }
+      const scale = maxDim / largest;
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.88));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 async function toInlineImageData(sourceUrl) {
   if (!sourceUrl) {
     throw new Error('Imagem de entrada vazia.');
   }
 
-  if (sourceUrl.startsWith('data:')) {
-    const commaIdx = sourceUrl.indexOf(',');
-    const header = sourceUrl.slice(0, commaIdx);
-    const base64 = sourceUrl.slice(commaIdx + 1);
-    const mimeMatch = header.match(/data:(.*?);base64/);
-    return {
-      mimeType: mimeMatch ? mimeMatch[1] : 'image/png',
-      base64
-    };
+  let workingUrl = sourceUrl;
+
+  if (!workingUrl.startsWith('data:')) {
+    const isExternal = /^https?:\/\//i.test(workingUrl);
+    const res = await fetch(
+      workingUrl,
+      isExternal ? { mode: 'cors' } : undefined
+    );
+    if (!res.ok) {
+      throw new Error(
+        `Falha ao carregar imagem da peça (HTTP ${res.status}).`
+      );
+    }
+    const blob = await res.blob();
+    workingUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(String(reader.result || ''));
+      reader.onerror = () =>
+        reject(new Error('Erro ao converter imagem da peça para Base64.'));
+      reader.readAsDataURL(blob);
+    });
   }
 
-  const isExternal = /^https?:\/\//i.test(sourceUrl);
-  const res = await fetch(sourceUrl, isExternal ? { mode: 'cors' } : undefined);
-  if (!res.ok) {
-    throw new Error(
-      `Falha ao carregar imagem da peça (HTTP ${res.status}). Verifique se a URL permite CORS.`
-    );
-  }
-  const blob = await res.blob();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = String(reader.result || '');
-      const commaIdx = result.indexOf(',');
-      resolve({
-        mimeType: blob.type || 'image/png',
-        base64: result.slice(commaIdx + 1)
-      });
-    };
-    reader.onerror = () =>
-      reject(new Error('Erro ao converter imagem da peça para Base64.'));
-    reader.readAsDataURL(blob);
-  });
+  const optimizedUrl = await compressDataUrlIfLarge(workingUrl, 1280);
+  const commaIdx = optimizedUrl.indexOf(',');
+  const header = optimizedUrl.slice(0, commaIdx);
+  const base64 = optimizedUrl.slice(commaIdx + 1);
+  const mimeMatch = header.match(/data:(.*?);base64/);
+
+  return {
+    mimeType: mimeMatch ? mimeMatch[1] : 'image/jpeg',
+    base64
+  };
 }
 
 /**
- * Provador Virtual Multimodal REAL via Google Gemini (`@google/genai`).
- * Tenta primeiro `gemini-2.5-flash-image` e faz fallback automático para
- * `gemini-2.0-flash-exp-image-generation` caso necessário.
- *
- * Aceita opcionalmente `overrideApiKey` para testes instantâneos no modal em caso de erro de cota.
+ * Provador Virtual Multimodal REAL via Backend Serverless `/api/tryon` (Vercel + Vite dev proxy)
+ * usando chamada REST direta compatível com chaves `AQ.` e `AIzaSy`.
  */
 export async function generateVirtualTryOn(
   userPhotoDataUrl,
@@ -56,90 +77,42 @@ export async function generateVirtualTryOn(
   garmentImageUrl,
   overrideApiKey = ''
 ) {
-  const apiKey = (
-    overrideApiKey ||
-    import.meta.env.VITE_GEMINI_API_KEY ||
-    ''
-  ).trim();
-
-  if (!apiKey) {
-    throw new Error(
-      'Nenhuma API Key do Gemini configurada. Defina VITE_GEMINI_API_KEY ou informe uma chave no campo abaixo para testar.'
-    );
-  }
-
   const [userImg, garmentImg] = await Promise.all([
     toInlineImageData(userPhotoDataUrl),
     toInlineImageData(garmentImageUrl)
   ]);
 
-  const prompt = `Virtual try-on fashion photography: Dress the person from the first image wearing the exact clothing item shown in the second image (${product.name} - ${product.description}). Keep the person's exact face, identity, hair, skin tone, body pose, and background completely unchanged. Replace only their current outfit with the new garment, adapting natural fabric folds, shadows, and realistic lighting to fit their body seamlessly.`;
+  const response = await fetch('/api/tryon', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      userImageBase64: userImg.base64,
+      userMimeType: userImg.mimeType,
+      garmentImageBase64: garmentImg.base64,
+      garmentMimeType: garmentImg.mimeType,
+      productName: product.name,
+      productDescription: product.description,
+      overrideApiKey: (overrideApiKey || '').trim()
+    })
+  });
 
-  const ai = new GoogleGenAI({ apiKey });
-  const candidateModels = [
-    'gemini-2.5-flash-image',
-    'gemini-2.0-flash-exp-image-generation'
-  ];
-
-  const errors = [];
-
-  for (const model of candidateModels) {
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                inlineData: {
-                  mimeType: userImg.mimeType,
-                  data: userImg.base64
-                }
-              },
-              {
-                inlineData: {
-                  mimeType: garmentImg.mimeType,
-                  data: garmentImg.base64
-                }
-              },
-              { text: prompt }
-            ]
-          }
-        ],
-        config: {
-          responseModalities: ['IMAGE', 'TEXT']
-        }
-      });
-
-      const candidate = response?.candidates?.[0];
-      const parts = candidate?.content?.parts || [];
-      const imagePart = parts.find((p) => p?.inlineData?.data);
-
-      if (imagePart?.inlineData?.data) {
-        const outMime = imagePart.inlineData.mimeType || 'image/png';
-        return {
-          imageUrl: `data:${outMime};base64,${imagePart.inlineData.data}`,
-          model
-        };
-      }
-
-      const textFeedback = parts
-        .filter((p) => p?.text)
-        .map((p) => p.text)
-        .join(' ')
-        .trim();
-      errors.push(
-        `[${model}] Sem imagem retornada${
-          candidate?.finishReason ? ` (${candidate.finishReason})` : ''
-        }${textFeedback ? `: ${textFeedback}` : ''}`
-      );
-    } catch (err) {
-      const msg =
-        err?.message || (typeof err === 'string' ? err : JSON.stringify(err));
-      errors.push(`[${model}] ${msg}`);
-    }
+  const rawText = await response.text();
+  let data = null;
+  try {
+    data = JSON.parse(rawText);
+  } catch {
+    data = null;
   }
 
-  throw new Error(errors.join(' | '));
+  if (!response.ok || !data?.imageUrl) {
+    throw new Error(
+      data?.error ||
+        `Erro HTTP ${response.status} ao chamar /api/tryon: ${rawText.slice(0, 260)}`
+    );
+  }
+
+  return {
+    imageUrl: data.imageUrl,
+    model: data.model || 'gemini-2.5-flash-image'
+  };
 }
