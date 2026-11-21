@@ -1,7 +1,7 @@
 import React from 'react';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Cloud } from 'lucide-react';
 
-export default function Footer() {
+export default function Footer({ onOpenPhotoManager }) {
   return (
     <footer className="w-full border-t border-[#181615]/10 bg-[#181615] text-[#F7F4F0]">
       <div className="mx-auto max-w-7xl px-5 sm:px-8 py-14">
@@ -16,12 +16,12 @@ export default function Footer() {
               </span>
             </div>
             <p className="mt-3 max-w-md text-xs leading-relaxed text-[#F7F4F0]/60">
-              Moda jovem urbana & Street Luxe D2C em escultura 3D interativa com Provador
+              Moda jovem urbana & Street Luxe D2C em vitrine editorial 3D com Provador
               Virtual multimodal via Google Gemini.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-6 text-xs font-bold uppercase tracking-[0.2em] text-[#F7F4F0]/70">
+          <div className="flex flex-wrap items-center gap-5 text-xs font-bold uppercase tracking-[0.2em] text-[#F7F4F0]/70">
             <a href="#colecao" className="hover:text-[#D8C7B4] transition-colors">
               New Drop
             </a>
@@ -46,7 +46,7 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#F7F4F0]/55">
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#F7F4F0]/55">
           <p className="tracking-[0.06em]">
             Harumi Modas • Powered by{' '}
             <a
@@ -58,9 +58,21 @@ export default function Footer() {
               Portal LOJAS JP (lojajp.com)
             </a>
           </p>
-          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#F7F4F0]/40">
-            STREET LUXE • TOKYO • DROP 2026
-          </p>
+
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={onOpenPhotoManager}
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-[11px] font-medium tracking-[0.08em] text-[#F7F4F0]/70 transition-all hover:border-[#D8C7B4]/60 hover:bg-white/10 hover:text-white"
+            >
+              <Cloud className="h-3.5 w-3.5 text-[#D8C7B4]" />
+              <span>Gerenciar Fotos (Cloudinary)</span>
+            </button>
+
+            <p className="hidden md:block text-[11px] font-bold uppercase tracking-[0.22em] text-[#F7F4F0]/40">
+              STREET LUXE • TOKYO
+            </p>
+          </div>
         </div>
       </div>
     </footer>

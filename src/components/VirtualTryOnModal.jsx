@@ -7,9 +7,10 @@ import {
   ShoppingBag,
   RefreshCw,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  KeyRound
 } from 'lucide-react';
-import { formatYen, generateCleanGarmentPng } from '../data/products';
+import { formatYen, getProductImageUrl } from '../data/products';
 import { generateVirtualTryOn } from '../services/geminiTryOn';
 
 export default function VirtualTryOnModal({
@@ -19,7 +20,7 @@ export default function VirtualTryOnModal({
   selectedSize,
   onSelectSize,
   onAddAndOpenCart,
-  garmentSnapshot
+  customPhotos
 }) {
   const fileInputRef = useRef(null);
   const [userPhoto, setUserPhoto] = useState(null);
@@ -27,8 +28,8 @@ export default function VirtualTryOnModal({
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [customApiKey, setCustomApiKey] = useState('');
 
-  // Limpa resultado/erro quando troca a peça ativa
   useEffect(() => {
     setResult(null);
     setErrorMsg('');
@@ -36,9 +37,7 @@ export default function VirtualTryOnModal({
 
   if (!isOpen || !product) return null;
 
-  // Segunda imagem enviada à IA: snapshot real do modelo 3D ativo (ou PNG limpo da peça)
-  const garmentRefPreview =
-    garmentSnapshot || generateCleanGarmentPng(product, false);
+  const garmentRefUrl = getProductImageUrl(product, 'front', customPhotos);
 
   const handleFile = (file) => {
     if (!file) return;
@@ -63,7 +62,7 @@ export default function VirtualTryOnModal({
     handleFile(file);
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (overrideKey = customApiKey) => {
     if (!userPhoto || isLoading) return;
     setIsLoading(true);
     setErrorMsg('');
@@ -73,14 +72,14 @@ export default function VirtualTryOnModal({
       const output = await generateVirtualTryOn(
         userPhoto,
         product,
-        garmentRefPreview
+        garmentRefUrl,
+        overrideKey
       );
       setResult(output);
     } catch (err) {
-      // Sem simulação falsa: exibe o diagnóstico real retornado pela API do Gemini
       setErrorMsg(
         err?.message ||
-          'Erro desconhecido ao chamar o modelo gemini-2.5-flash-image.'
+          'Erro desconhecido ao chamar o modelo multimodal do Gemini.'
       );
     } finally {
       setIsLoading(false);
@@ -106,13 +105,13 @@ export default function VirtualTryOnModal({
           <div>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[#181615] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.26em] text-[#D8C7B4]">
               <Sparkles className="h-3 w-3" />
-              FIT CHECK IA • gemini-2.5-flash-image
+              FIT CHECK IA • Gemini Multimodal
             </span>
             <h3 className="mt-2 font-display text-2xl sm:text-3xl font-extrabold uppercase tracking-[-0.02em] text-[#181615]">
               {product.name}
             </h3>
             <p className="text-xs sm:text-sm text-[#181615]/65">
-              Envio multimodal real: sua foto + snapshot PNG da peça 3D para troca fiel da roupa mantendo seu rosto, pose e fundo.
+              Envie sua foto para vestir esta peça mantendo rosto, cabelo, pose e iluminação reais.
             </p>
           </div>
 
@@ -126,30 +125,51 @@ export default function VirtualTryOnModal({
           </button>
         </div>
 
-        {/* Alerta claro de diagnóstico em caso de erro real da API Gemini */}
+        {/* Alerta de Diagnóstico + Campo Discreto "Testar com outra API Key" */}
         {errorMsg && (
-          <div className="mt-5 flex items-start gap-3 rounded-2xl border border-red-300 bg-red-50 p-4 text-left text-xs text-red-900 shadow-sm">
-            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
-            <div className="space-y-1">
-              <p className="font-bold uppercase tracking-[0.14em] text-red-700">
-                Falha na Geração pela API do Gemini
-              </p>
-              <p className="font-mono text-[11px] leading-relaxed break-words text-red-900/90">
-                {errorMsg}
-              </p>
-              <p className="text-[11px] text-red-800/80">
-                Dica de diagnóstico: verifique se a API <strong>Generative Language API (Gemini)</strong> e o modelo{' '}
-                <code>gemini-2.5-flash-image</code> estão habilitados com faturamento/cota ativa na chave configurada em{' '}
-                <code>VITE_GEMINI_API_KEY</code>.
-              </p>
+          <div className="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 text-left text-xs text-red-900 shadow-sm space-y-3">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+              <div className="space-y-1">
+                <p className="font-bold uppercase tracking-[0.14em] text-red-700">
+                  Erro na API do Gemini
+                </p>
+                <p className="font-mono text-[11px] leading-relaxed break-words text-red-900/90">
+                  {errorMsg}
+                </p>
+              </div>
+            </div>
+
+            {/* Campo discreto para testar outra API Key imediatamente */}
+            <div className="rounded-xl border border-red-200 bg-white/85 p-3">
+              <label className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[#181615]/75">
+                <KeyRound className="h-3.5 w-3.5 text-[#8C7554]" />
+                <span>Testar com outra API Key (Gemini AI Studio)</span>
+              </label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="password"
+                  value={customApiKey}
+                  onChange={(e) => setCustomApiKey(e.target.value)}
+                  placeholder="Cole sua chave AIzaSy... ou AQ... aqui para testar agora"
+                  className="flex-1 rounded-lg border border-[#181615]/20 bg-[#F7F4F0] px-3 py-2 font-mono text-xs text-[#181615] focus:border-[#181615] focus:outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={!customApiKey.trim() || !userPhoto || isLoading}
+                  onClick={() => handleGenerate(customApiKey.trim())}
+                  className="rounded-lg bg-[#181615] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#F7F4F0] hover:bg-[#2F2A27] disabled:opacity-45"
+                >
+                  Testar Agora
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Fluxo Principal */}
+        {/* Estado 1: Upload + Preview da Foto Editorial da Peça */}
         {!result ? (
           <div className="mt-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
-            {/* 1. Upload da Foto da Cliente */}
             <div className="md:col-span-7 flex flex-col">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#181615]">
@@ -174,7 +194,7 @@ export default function VirtualTryOnModal({
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={handleDrop}
                 onClick={() => !userPhoto && fileInputRef.current?.click()}
-                className={`relative flex flex-1 min-h-[330px] flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed transition-all ${
+                className={`relative flex flex-1 min-h-[340px] flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed transition-all ${
                   isDragging
                     ? 'border-[#D47A6A] bg-[#D47A6A]/10'
                     : userPhoto
@@ -195,7 +215,7 @@ export default function VirtualTryOnModal({
                     <img
                       src={userPhoto}
                       alt="Sua foto enviada"
-                      className="h-full max-h-[390px] w-full object-contain bg-[#EFECE7]"
+                      className="h-full max-h-[400px] w-full object-contain bg-[#EFECE7]"
                     />
 
                     {isLoading && (
@@ -208,7 +228,7 @@ export default function VirtualTryOnModal({
                           A IA do Gemini está gerando sua prévia...
                         </p>
                         <p className="mt-1.5 text-xs text-[#F7F4F0]/75">
-                          Enviando sua foto + snapshot 3D de {product.name} para gemini-2.5-flash-image
+                          Vestindo {product.name} com caimento e iluminação realistas
                         </p>
                       </div>
                     )}
@@ -222,8 +242,8 @@ export default function VirtualTryOnModal({
                       Arraste sua foto ou clique para escolher
                     </p>
                     <p className="mt-2 text-xs leading-relaxed text-[#181615]/60">
-                      Foto de frente, boa iluminação (meio corpo ou corpo inteiro) garante
-                      o melhor caimento no provador virtual.
+                      Prefira foto de frente com boa iluminação (meio corpo ou corpo inteiro)
+                      para um resultado fotográfico impecável.
                     </p>
                     <button
                       type="button"
@@ -241,15 +261,15 @@ export default function VirtualTryOnModal({
               </div>
             </div>
 
-            {/* 2. Snapshot PNG da Peça 3D Ativa + Botão Gerar */}
+            {/* 2. Peça Editorial Selecionada */}
             <div className="md:col-span-5 flex flex-col justify-between rounded-2xl border border-[#181615]/10 bg-white/80 p-5">
               <div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#8C7554]">
-                    2. Referência 3D (PNG)
+                    2. Peça de Referência
                   </span>
                   <span className="rounded-full bg-[#181615]/8 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#181615]/70">
-                    Imagem #2
+                    Lookbook
                   </span>
                 </div>
 
@@ -258,9 +278,9 @@ export default function VirtualTryOnModal({
                   style={{ backgroundColor: product.colorSoft }}
                 >
                   <img
-                    src={garmentRefPreview}
-                    alt={`Referência 3D de ${product.name}`}
-                    className="h-52 w-full object-contain p-2"
+                    src={garmentRefUrl}
+                    alt={product.name}
+                    className="h-56 w-full object-cover object-top"
                   />
                 </div>
 
@@ -300,18 +320,18 @@ export default function VirtualTryOnModal({
               <button
                 type="button"
                 disabled={!userPhoto || isLoading}
-                onClick={handleGenerate}
+                onClick={() => handleGenerate()}
                 className="btn-shimmer mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[#181615] px-5 py-3.5 text-xs font-extrabold uppercase tracking-[0.16em] text-[#F7F4F0] shadow-lg transition-all hover:bg-[#2F2A27] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <Sparkles className="h-4 w-4 text-[#D8C7B4]" />
                 <span>
-                  {isLoading ? 'Processando no Gemini...' : 'Gerar Prévia com IA Gemini'}
+                  {isLoading ? 'Gerando no Gemini...' : 'Gerar Prévia com IA Gemini'}
                 </span>
               </button>
             </div>
           </div>
         ) : (
-          /* Resultado Multimodal Real: Lado a Lado */
+          /* Estado 2: Comparação Lado a Lado */
           <div className="mt-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-2.5 text-xs text-emerald-950">
               <span className="inline-flex items-center gap-2 font-semibold">

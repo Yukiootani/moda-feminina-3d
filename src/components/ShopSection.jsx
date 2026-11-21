@@ -6,6 +6,7 @@ const SHOP_SIZES = ['P', 'M', 'G'];
 
 export default function ShopSection({
   activeIndex,
+  customPhotos,
   onInspectProduct,
   onAddWithFly
 }) {
@@ -48,7 +49,7 @@ export default function ShopSection({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
           {PRODUCTS.map((product, idx) => {
             const selectedSize = cardSizes[product.id] || 'M';
-            const frontImg = getProductImageUrl(product, 'front');
+            const frontImg = getProductImageUrl(product, 'front', customPhotos);
             const isActive = idx === activeIndex;
 
             return (
@@ -88,7 +89,7 @@ export default function ShopSection({
                     src={frontImg}
                     alt={product.name}
                     loading="lazy"
-                    className="h-full w-full object-contain p-1 transition-transform duration-700 ease-out group-hover:scale-105"
+                    className="h-full w-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-105"
                   />
                 </div>
 

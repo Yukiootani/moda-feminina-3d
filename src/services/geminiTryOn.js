@@ -1,8 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
-import { generateCleanGarmentPng } from '../data/products';
 
 /**
- * Extrai { mimeType, base64 } de um data URL (base64) ou URL de imagem.
+ * Converte dataURL ou URL (local `./garments/...` ou Cloudinary/Unsplash CORS) para { mimeType, base64 }
  */
 async function toInlineImageData(sourceUrl) {
   if (!sourceUrl) {
@@ -22,7 +21,9 @@ async function toInlineImageData(sourceUrl) {
 
   const res = await fetch(sourceUrl, { mode: 'cors' });
   if (!res.ok) {
-    throw new Error(`Falha ao carregar imagem de referência (HTTP ${res.status}).`);
+    throw new Error(
+      `Falha ao carregar imagem da peça (HTTP ${res.status}). Verifique se a URL permite CORS.`
+    );
   }
   const blob = await res.blob();
   return new Promise((resolve, reject) => {
@@ -35,105 +36,109 @@ async function toInlineImageData(sourceUrl) {
         base64: result.slice(commaIdx + 1)
       });
     };
-    reader.onerror = () => reject(new Error('Erro ao converter imagem para Base64.'));
+    reader.onerror = () =>
+      reject(new Error('Erro ao converter imagem da peça para Base64.'));
     reader.readAsDataURL(blob);
   });
 }
 
 /**
- * Provador Virtual Multimodal REAL via Google Gemini (`gemini-2.5-flash-image`).
- * Envia DUAS imagens em Base64 (`inlineData`):
- *   1) Foto da cliente
- *   2) Snapshot PNG da peça 3D ativa (ou renderização limpa em alta resolução da peça)
- * + prompt explícito em inglês para troca realista de roupa.
+ * Provador Virtual Multimodal REAL via Google Gemini (`@google/genai`).
+ * Tenta primeiro `gemini-2.5-flash-image` e faz fallback automático para
+ * `gemini-2.0-flash-exp-image-generation` caso necessário.
  *
- * IMPORTANTE: NÃO realiza simulação falsa silenciosa. Qualquer erro da API é
- * propagado com a mensagem exata para diagnóstico imediato na interface.
+ * Aceita opcionalmente `overrideApiKey` para testes instantâneos no modal em caso de erro de cota.
  */
 export async function generateVirtualTryOn(
   userPhotoDataUrl,
   product,
-  garmentSnapshotDataUrl = null
+  garmentImageUrl,
+  overrideApiKey = ''
 ) {
-  const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || '').trim();
+  const apiKey = (
+    overrideApiKey ||
+    import.meta.env.VITE_GEMINI_API_KEY ||
+    ''
+  ).trim();
 
   if (!apiKey) {
     throw new Error(
-      'Chave VITE_GEMINI_API_KEY não configurada. Defina VITE_GEMINI_API_KEY no arquivo .env e nas variáveis de ambiente da Vercel.'
+      'Nenhuma API Key do Gemini configurada. Defina VITE_GEMINI_API_KEY ou informe uma chave no campo abaixo para testar.'
     );
   }
 
-  const garmentSource =
-    garmentSnapshotDataUrl || generateCleanGarmentPng(product, false);
-
   const [userImg, garmentImg] = await Promise.all([
     toInlineImageData(userPhotoDataUrl),
-    toInlineImageData(garmentSource)
+    toInlineImageData(garmentImageUrl)
   ]);
 
   const prompt = `Virtual try-on fashion photography: Dress the person from the first image wearing the exact clothing item shown in the second image (${product.name} - ${product.description}). Keep the person's exact face, identity, hair, skin tone, body pose, and background completely unchanged. Replace only their current outfit with the new garment, adapting natural fabric folds, shadows, and realistic lighting to fit their body seamlessly.`;
 
   const ai = new GoogleGenAI({ apiKey });
+  const candidateModels = [
+    'gemini-2.5-flash-image',
+    'gemini-2.0-flash-exp-image-generation'
+  ];
 
-  let response;
-  try {
-    response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              inlineData: {
-                mimeType: userImg.mimeType,
-                data: userImg.base64
-              }
-            },
-            {
-              inlineData: {
-                mimeType: garmentImg.mimeType,
-                data: garmentImg.base64
-              }
-            },
-            { text: prompt }
-          ]
+  const errors = [];
+
+  for (const model of candidateModels) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                inlineData: {
+                  mimeType: userImg.mimeType,
+                  data: userImg.base64
+                }
+              },
+              {
+                inlineData: {
+                  mimeType: garmentImg.mimeType,
+                  data: garmentImg.base64
+                }
+              },
+              { text: prompt }
+            ]
+          }
+        ],
+        config: {
+          responseModalities: ['IMAGE', 'TEXT']
         }
-      ],
-      config: {
-        responseModalities: ['IMAGE', 'TEXT']
+      });
+
+      const candidate = response?.candidates?.[0];
+      const parts = candidate?.content?.parts || [];
+      const imagePart = parts.find((p) => p?.inlineData?.data);
+
+      if (imagePart?.inlineData?.data) {
+        const outMime = imagePart.inlineData.mimeType || 'image/png';
+        return {
+          imageUrl: `data:${outMime};base64,${imagePart.inlineData.data}`,
+          model
+        };
       }
-    });
-  } catch (apiError) {
-    const rawMsg =
-      apiError?.message ||
-      (typeof apiError === 'string' ? apiError : JSON.stringify(apiError));
-    throw new Error(`Erro na API do Gemini (gemini-2.5-flash-image): ${rawMsg}`);
+
+      const textFeedback = parts
+        .filter((p) => p?.text)
+        .map((p) => p.text)
+        .join(' ')
+        .trim();
+      errors.push(
+        `[${model}] Sem imagem retornada${
+          candidate?.finishReason ? ` (${candidate.finishReason})` : ''
+        }${textFeedback ? `: ${textFeedback}` : ''}`
+      );
+    } catch (err) {
+      const msg =
+        err?.message || (typeof err === 'string' ? err : JSON.stringify(err));
+      errors.push(`[${model}] ${msg}`);
+    }
   }
 
-  const candidate = response?.candidates?.[0];
-  const parts = candidate?.content?.parts || [];
-  const imagePart = parts.find((p) => p?.inlineData?.data);
-
-  if (!imagePart?.inlineData?.data) {
-    const textFeedback = parts
-      .filter((p) => p?.text)
-      .map((p) => p.text)
-      .join(' ')
-      .trim();
-    const finishReason = candidate?.finishReason
-      ? ` (finishReason: ${candidate.finishReason})`
-      : '';
-    throw new Error(
-      `O modelo gemini-2.5-flash-image não retornou uma imagem${finishReason}.${
-        textFeedback ? ` Resposta do modelo: "${textFeedback}"` : ''
-      }`
-    );
-  }
-
-  const outMime = imagePart.inlineData.mimeType || 'image/png';
-  return {
-    imageUrl: `data:${outMime};base64,${imagePart.inlineData.data}`,
-    model: 'gemini-2.5-flash-image',
-    garmentRefUrl: garmentSource
-  };
+  throw new Error(errors.join(' | '));
 }

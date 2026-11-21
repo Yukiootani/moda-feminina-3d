@@ -1,17 +1,17 @@
-# HARUMI MODAS — NEW DROP 3D • Street Luxe & Provador Virtual IA
+# HARUMI MODAS — Lookbook Editorial 3D • Street Luxe & Provador Virtual IA
 
-Aplicação web e-commerce D2C de moda jovem urbana (*Zara / Bershka / Street Luxe vibes*) da marca **HARUMI MODAS**, integrada ao ecossistema **Portal LOJAS JP** (`lojajp.com`).
+Aplicação web e-commerce D2C de moda feminina jovem urbana (*Zara / Bershka / Street Luxe*) da marca **HARUMI MODAS**, integrada ao ecossistema **Portal LOJAS JP** (`lojajp.com`).
 
 ## Destaques Técnicos
-- **Escultura 3D Real Sem Planos Retangulares ([Garment3DModel.jsx](src/components/Garment3DModel.jsx))**: Cada uma das 5 peças é esculpida em 3D volumétrico (`BufferGeometry`, `ExtrudeGeometry`, `TubeGeometry`, `TorusGeometry`) com silhueta recortada, dobras de tecido, barbatanas, bolsos cargo 3D, mangas bufantes, recortes cut-out, drapeado lateral, iluminação de estúdio (`Lightformer` + `ContactShadows`), costura traseira e etiqueta interna **HARUMI MODAS**.
+- **Fotografia Editorial Real em 3D Curvo Sem Bordas ([EditorialGarment3D.jsx](src/components/EditorialGarment3D.jsx))**: Planos 3D curvos com bordas esfumadas (`alphaMap`), efeito parallax 3D suave ao mover o mouse/arrastar, brilho especular sutil (`MeshPhysicalMaterial`), rotação 3D entre frente e verso (costas + etiqueta) e sombra realista projetada no chão (`ContactShadows`).
+- **Gerenciador de Fotos Cloudinary no Rodapé ([CloudinaryManagerModal.jsx](src/components/CloudinaryManagerModal.jsx))**: Permite colar o Public ID ou URL de qualquer foto do Cloudinary (`jontqsrz`) com recorte automático de fundo (`e_background_removal`) e atualização instantânea sem mexer no código.
 - **Catálogo Street Luxe (5 Peças)**:
   1. **Corset Cropped Acetinado** (`#D47A6A` | `¥5.900`)
   2. **Calça Cargo Parachute** (`#D5C7B2` | `¥8.900`)
   3. **Jaqueta Bomber Oversized** (`#8FA696` | `¥11.500`)
   4. **Conjunto Ribbed Cut-Out** (`#E295A8` | `¥7.800`)
   5. **Vestido Mini Drapeado Ônix** (`#7D7A85` | `¥6.900`)
-- **Provador Virtual Multimodal Real (`gemini-2.5-flash-image`)**: Captura automaticamente o snapshot PNG em Base64 da peça 3D ativa e envia junto com a foto da cliente via `@google/genai` com prompt fotográfico de troca de roupa. Sem simulação falsa: erros da API são exibidos com alerta claro de diagnóstico.
-- **Compatibilidade Universal**: `base: './'` no Vite + `vercel.json` + `netlify.toml` (subdomínio / `/harumimodas/*`).
+- **Provador Virtual Multimodal Real (`gemini-2.5-flash-image` + fallback `gemini-2.0-flash-exp-image-generation`)**: Envia a foto da cliente + a foto editorial da peça em Base64 (`inlineData`), exibe lado a lado com botão **Amei, Adicionar ao Carrinho** e inclui campo discreto **Testar com outra API Key** em caso de erro de cota.
 
 ---
 *Harumi Modas • Powered by Portal LOJAS JP (lojajp.com)*

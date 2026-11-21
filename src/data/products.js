@@ -1,18 +1,60 @@
-// Catálogo HARUMI MODAS • Street Luxe / Zara & Bershka Vibes • Ecossistema Portal LOJAS JP
-// Cloudinary Helper (cloud name: jontqsrz) + Renderização Editorial Limpa das 5 Peças
+// Catálogo HARUMI MODAS • Street Luxe / Zara & Bershka Lookbook • Ecossistema Portal LOJAS JP
+// Fotografias Editoriais Reais + Gerenciador Cloudinary (`jontqsrz`) com `e_background_removal`
 
 export const CLOUDINARY_CLOUD_NAME =
   import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'jontqsrz';
 
-export function getCloudinaryUrl(
-  publicId,
-  transforms = 'f_auto,q_auto:best,w_1200'
-) {
-  if (!publicId || typeof publicId !== 'string' || !publicId.trim()) {
+const CUSTOM_PHOTOS_STORAGE_KEY = 'harumi_modas_cloudinary_photos_v1';
+
+/**
+ * Monta URL otimizada do Cloudinary (`jontqsrz`) com suporte a recorte automático de fundo
+ * (`e_background_removal`) ou aceita uma URL completa (Unsplash / Pexels / Cloudinary).
+ */
+export function resolveCloudinaryOrUrl(input, removeBackground = true) {
+  if (!input || typeof input !== 'string' || !input.trim()) {
     return null;
   }
-  const cleanId = publicId.trim().replace(/^\/+/, '');
+  const raw = input.trim();
+  const bgTransform = removeBackground ? 'e_background_removal,' : '';
+  const transforms = `${bgTransform}f_auto,q_auto:best,w_1200`;
+
+  if (/^https?:\/\//i.test(raw)) {
+    // Se já for uma URL do Cloudinary e o usuário ativou recorte de fundo, injeta a transformação
+    if (
+      removeBackground &&
+      raw.includes('res.cloudinary.com/') &&
+      raw.includes('/image/upload/') &&
+      !raw.includes('e_background_removal')
+    ) {
+      return raw.replace('/image/upload/', `/image/upload/${transforms}/`);
+    }
+    return raw;
+  }
+
+  const cleanId = raw.replace(/^\/+/, '');
   return `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/${transforms}/${cleanId}`;
+}
+
+export function loadCustomPhotos() {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(CUSTOM_PHOTOS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveCustomPhotos(photoMap) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(
+      CUSTOM_PHOTOS_STORAGE_KEY,
+      JSON.stringify(photoMap || {})
+    );
+  } catch {
+    // ignore storage quota errors
+  }
 }
 
 export function formatYen(amount) {
@@ -33,9 +75,9 @@ export const PRODUCTS = [
     colorSoft: '#F3DFDA',
     bgTint: '#E6BFB6',
     accentText: '#4F221A',
-    silhouette: 'satin-corset',
+    defaultFrontImage: './garments/corset-terracota.jpg',
     description:
-      'Terracotta satin structured cropped corset top with sweetheart neckline, delicate spaghetti straps, vertical couture boning seams, and sleek fitted waist',
+      'Terracotta satin structured cropped corset top with sweetheart neckline, thin spaghetti straps, vertical couture boning seams, and sleek fitted waist',
     fabricHeadline: 'CETIM ESTRUTURADO. BARBATANAS & DECOTE CORAÇÃO.',
     fabricTitle: 'Cetim Duchesse Stretch',
     fabricDescription:
@@ -47,14 +89,6 @@ export const PRODUCTS = [
     tagline: 'Modelagem estruturada, alças finas e decote coração em brilho urbano.',
     cloudinaryFrontId: '',
     cloudinaryBackId: '',
-    materialProps: {
-      roughness: 0.24,
-      metalness: 0.08,
-      sheen: 1.0,
-      sheenRoughness: 0.22,
-      sheenColor: '#FAD3C8',
-      clearcoat: 0.32
-    },
     sizeGuide: [
       { size: 'P', bust: '80–84 cm', waist: '62–66 cm', hip: '—', length: '34 cm' },
       { size: 'M', bust: '85–89 cm', waist: '67–71 cm', hip: '—', length: '36 cm' },
@@ -75,7 +109,7 @@ export const PRODUCTS = [
     colorSoft: '#F2ECE3',
     bgTint: '#E2D6C5',
     accentText: '#463C2E',
-    silhouette: 'cargo-parachute',
+    defaultFrontImage: './garments/cargo-parachute.jpg',
     description:
       'Sand beige streetwear parachute cargo pants with adjustable low-to-mid drawstring waist, wide voluminous legs with knee pleats, large 3D side cargo pockets, and cinched elastic ankle cuffs',
     fabricHeadline: 'NYLON TECHNICAL LEVE. VOLUME STREETWEAR REAL.',
@@ -89,14 +123,6 @@ export const PRODUCTS = [
     tagline: 'Cintura ajustável, bolsos laterais volumosos e punho franzido.',
     cloudinaryFrontId: '',
     cloudinaryBackId: '',
-    materialProps: {
-      roughness: 0.64,
-      metalness: 0.04,
-      sheen: 0.45,
-      sheenRoughness: 0.62,
-      sheenColor: '#F7EFE3',
-      clearcoat: 0.05
-    },
     sizeGuide: [
       { size: 'P', bust: '—', waist: '64–70 cm', hip: '96–102 cm', length: '101 cm' },
       { size: 'M', bust: '—', waist: '71–76 cm', hip: '103–108 cm', length: '103 cm' },
@@ -117,7 +143,7 @@ export const PRODUCTS = [
     colorSoft: '#E3ECE6',
     bgTint: '#C2D3C7',
     accentText: '#233328',
-    silhouette: 'bomber-oversized',
+    defaultFrontImage: './garments/bomber-oversized.jpg',
     description:
       'Sage military green oversized streetwear bomber jacket with metallic front zipper, puffed ruched sleeves with utility bicep pocket, ribbed baseball collar, and cropped ribbed hem',
     fabricHeadline: 'NYLON ACETINADO MILITAR. MANGAS BUFANTES & ZÍPER METAL.',
@@ -131,14 +157,6 @@ export const PRODUCTS = [
     tagline: 'Zíper metálico, mangas bufantes com franzido e gola ribana.',
     cloudinaryFrontId: '',
     cloudinaryBackId: '',
-    materialProps: {
-      roughness: 0.34,
-      metalness: 0.14,
-      sheen: 0.86,
-      sheenRoughness: 0.35,
-      sheenColor: '#CDE0D3',
-      clearcoat: 0.24
-    },
     sizeGuide: [
       { size: 'P', bust: '104–110 cm', waist: '86–92 cm', hip: '—', length: '56 cm' },
       { size: 'M', bust: '111–116 cm', waist: '93–98 cm', hip: '—', length: '58 cm' },
@@ -159,7 +177,7 @@ export const PRODUCTS = [
     colorSoft: '#F8E3E9',
     bgTint: '#EDCAD3',
     accentText: '#542030',
-    silhouette: 'ribbed-cutout',
+    defaultFrontImage: './garments/ribbed-cutout.jpg',
     description:
       'Bubblegum chic pink two-piece ribbed knit co-ord set featuring an asymmetric one-shoulder cut-out cropped top paired with a bodycon fitted midi skirt with a high side slit',
     fabricHeadline: 'MALHA CANELADA PREMIUM. RECORTE ASSIMÉTRICO + FENDA.',
@@ -173,14 +191,6 @@ export const PRODUCTS = [
     tagline: 'Top assimétrico com recorte + saia midi justa com fenda lateral.',
     cloudinaryFrontId: '',
     cloudinaryBackId: '',
-    materialProps: {
-      roughness: 0.7,
-      metalness: 0.02,
-      sheen: 0.88,
-      sheenRoughness: 0.65,
-      sheenColor: '#FAD3DE',
-      clearcoat: 0.04
-    },
     sizeGuide: [
       { size: 'P', bust: '80–85 cm', waist: '62–67 cm', hip: '88–94 cm', length: '82 cm' },
       { size: 'M', bust: '86–91 cm', waist: '68–73 cm', hip: '95–100 cm', length: '84 cm' },
@@ -201,7 +211,7 @@ export const PRODUCTS = [
     colorSoft: '#E5E4E8',
     bgTint: '#C4C1CA',
     accentText: '#232129',
-    silhouette: 'mini-draped',
+    defaultFrontImage: './garments/mini-draped-onix.jpg',
     description:
       'Graphite onyx metallic-sheen draped mini dress with asymmetric spaghetti straps, bodycon ruched gathers across the waist and hips, and adjustable side drawstring tie for a chic night-out look',
     fabricHeadline: 'MALHA FLUIDA ÔNIX. DRAPEADO AJUSTÁVEL PARA A NOITE.',
@@ -215,14 +225,6 @@ export const PRODUCTS = [
     tagline: 'Alças assimétricas, drapeado lateral ajustável e brilho grafite.',
     cloudinaryFrontId: '',
     cloudinaryBackId: '',
-    materialProps: {
-      roughness: 0.28,
-      metalness: 0.22,
-      sheen: 1.0,
-      sheenRoughness: 0.26,
-      sheenColor: '#D6D2E3',
-      clearcoat: 0.34
-    },
     sizeGuide: [
       { size: 'P', bust: '80–85 cm', waist: '62–67 cm', hip: '88–94 cm', length: '78 cm' },
       { size: 'M', bust: '86–91 cm', waist: '68–73 cm', hip: '95–100 cm', length: '80 cm' },
@@ -232,318 +234,126 @@ export const PRODUCTS = [
   }
 ];
 
-const previewCache = new Map();
-
-function hexToRgb(hex) {
-  const clean = hex.replace('#', '');
-  const num = parseInt(clean, 16);
-  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
-}
-
-function shadeHex(hex, percent) {
-  const { r, g, b } = hexToRgb(hex);
-  const f = (c) =>
-    Math.max(0, Math.min(255, Math.round(c + (percent / 100) * 255)));
-  return `rgb(${f(r)}, ${f(g)}, ${f(b)})`;
-}
+const backSpecCache = new Map();
 
 /**
- * Gera uma imagem editorial limpa de estúdio (silhueta recortada sem borda de pôster)
- * para cards do Shop, Look Builder e fallback de referência limpa para a IA.
+ * Gera verso editorial minimalista (ficha técnica + etiqueta tecida HARUMI MODAS)
+ * caso o usuário não tenha cadastrado uma foto separada de costas no Cloudinary.
  */
-export function generateCleanGarmentPng(product, transparentBg = false) {
-  const cacheKey = `${product.id}_${transparentBg ? 'alpha' : 'studio'}`;
-  if (previewCache.has(cacheKey)) {
-    return previewCache.get(cacheKey);
-  }
+export function generateBackEditorialCard(product) {
+  if (backSpecCache.has(product.id)) return backSpecCache.get(product.id);
   if (typeof document === 'undefined') return '';
 
   const W = 900;
-  const H = 1150;
-  const cx = W / 2;
+  const H = 1200;
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d');
 
-  if (!transparentBg) {
-    const bg = ctx.createRadialGradient(cx, H * 0.44, 60, cx, H * 0.5, H * 0.72);
-    bg.addColorStop(0, '#FFFFFF');
-    bg.addColorStop(0.7, product.colorSoft);
-    bg.addColorStop(1, product.bgTint);
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, W, H);
-  }
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#FAF7F3');
+  bg.addColorStop(0.55, product.colorSoft);
+  bg.addColorStop(1, product.bgTint);
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
 
-  const grad = ctx.createLinearGradient(cx - 240, 160, cx + 260, H - 140);
-  grad.addColorStop(0, shadeHex(product.color, 14));
-  grad.addColorStop(0.45, product.color);
-  grad.addColorStop(1, product.colorDeep);
+  // Etiqueta tecida de cetim champanhe no topo central
+  const lw = 340;
+  const lh = 118;
+  const lx = (W - lw) / 2;
+  const ly = 140;
 
   ctx.save();
-  ctx.shadowColor = 'rgba(24, 22, 21, 0.26)';
-  ctx.shadowBlur = 44;
-  ctx.shadowOffsetY = 26;
-
-  if (product.silhouette === 'satin-corset') {
-    // Alças finas
-    ctx.strokeStyle = product.colorDeep;
-    ctx.lineWidth = 10;
-    ctx.beginPath();
-    ctx.moveTo(cx - 122, 250);
-    ctx.lineTo(cx - 134, 415);
-    ctx.moveTo(cx + 122, 250);
-    ctx.lineTo(cx + 134, 415);
-    ctx.stroke();
-
-    // Corpo do Corset com decote coração e bico inferior
-    ctx.beginPath();
-    ctx.moveTo(cx, 455);
-    ctx.bezierCurveTo(cx - 55, 360, cx - 165, 375, cx - 178, 465);
-    ctx.bezierCurveTo(cx - 175, 585, cx - 142, 680, cx - 138, 760);
-    ctx.quadraticCurveTo(cx - 55, 795, cx, 845);
-    ctx.quadraticCurveTo(cx + 55, 795, cx + 138, 760);
-    ctx.bezierCurveTo(cx + 142, 680, cx + 175, 585, cx + 178, 465);
-    ctx.bezierCurveTo(cx + 165, 375, cx + 55, 360, cx, 455);
-    ctx.closePath();
-    ctx.fillStyle = grad;
-    ctx.fill();
-
-    ctx.shadowColor = 'transparent';
-    ctx.clip();
-    // Barbatanas verticais + brilho cetim
-    ctx.strokeStyle = 'rgba(255,255,255,0.34)';
-    ctx.lineWidth = 4;
-    [-112, -56, 0, 56, 112].forEach((bx) => {
-      ctx.beginPath();
-      ctx.moveTo(cx + bx, 395);
-      ctx.quadraticCurveTo(cx + bx * 0.85, 620, cx + bx * 0.92, 835);
-      ctx.stroke();
-    });
-    const gloss = ctx.createLinearGradient(cx - 180, 380, cx + 120, 820);
-    gloss.addColorStop(0, 'rgba(255,255,255,0.28)');
-    gloss.addColorStop(0.5, 'rgba(255,255,255,0)');
-    gloss.addColorStop(1, 'rgba(255,255,255,0.18)');
-    ctx.fillStyle = gloss;
-    ctx.fillRect(0, 0, W, H);
-  } else if (product.silhouette === 'cargo-parachute') {
-    // Calça Cargo Parachute ampla com punhos franzidos
-    ctx.beginPath();
-    ctx.moveTo(cx - 138, 175);
-    ctx.lineTo(cx + 138, 175);
-    ctx.bezierCurveTo(cx + 188, 340, cx + 245, 610, cx + 220, 935);
-    ctx.lineTo(cx + 174, 985);
-    ctx.lineTo(cx + 72, 985);
-    ctx.lineTo(cx + 48, 925);
-    ctx.bezierCurveTo(cx + 42, 720, cx + 22, 540, cx, 445);
-    ctx.bezierCurveTo(cx - 22, 540, cx - 42, 720, cx - 48, 925);
-    ctx.lineTo(cx - 72, 985);
-    ctx.lineTo(cx - 174, 985);
-    ctx.lineTo(cx - 220, 935);
-    ctx.bezierCurveTo(cx - 245, 610, cx - 188, 340, cx - 138, 175);
-    ctx.closePath();
-    ctx.fillStyle = grad;
-    ctx.fill();
-
-    ctx.shadowColor = 'transparent';
-    // Bolsos cargo 3D laterais volumosos
-    ctx.fillStyle = shadeHex(product.color, -6);
-    ctx.strokeStyle = 'rgba(70,58,42,0.34)';
-    ctx.lineWidth = 3;
-    // Esquerdo
-    ctx.beginPath();
-    ctx.roundRect(cx - 236, 465, 92, 148, 14);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = shadeHex(product.color, 6);
-    ctx.beginPath();
-    ctx.roundRect(cx - 240, 460, 100, 42, 10);
-    ctx.fill();
-    ctx.stroke();
-
-    // Direito
-    ctx.fillStyle = shadeHex(product.color, -6);
-    ctx.beginPath();
-    ctx.roundRect(cx + 144, 465, 92, 148, 14);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = shadeHex(product.color, 6);
-    ctx.beginPath();
-    ctx.roundRect(cx + 140, 460, 100, 42, 10);
-    ctx.fill();
-    ctx.stroke();
-
-    // Cordão ajustável na cintura + pregas nos joelhos + punhos franzidos
-    ctx.strokeStyle = 'rgba(65,52,38,0.45)';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(cx - 140, 218);
-    ctx.lineTo(cx + 140, 218);
-    ctx.moveTo(cx - 10, 218);
-    ctx.quadraticCurveTo(cx - 26, 290, cx - 18, 342);
-    ctx.moveTo(cx + 10, 218);
-    ctx.quadraticCurveTo(cx + 28, 295, cx + 16, 350);
-    ctx.moveTo(cx - 190, 690);
-    ctx.quadraticCurveTo(cx - 130, 712, cx - 65, 690);
-    ctx.moveTo(cx + 190, 690);
-    ctx.quadraticCurveTo(cx + 130, 712, cx + 65, 690);
-    ctx.stroke();
-  } else if (product.silhouette === 'bomber-oversized') {
-    // Jaqueta Bomber Oversized com mangas bufantes + gola ribana
-    ctx.beginPath();
-    ctx.moveTo(cx - 95, 225);
-    ctx.quadraticCurveTo(cx, 255, cx + 95, 225);
-    ctx.bezierCurveTo(cx + 195, 240, cx + 275, 295, cx + 315, 425);
-    ctx.bezierCurveTo(cx + 355, 580, cx + 345, 735, cx + 295, 845);
-    ctx.lineTo(cx + 215, 835);
-    ctx.bezierCurveTo(cx + 225, 700, cx + 215, 560, cx + 195, 495);
-    ctx.bezierCurveTo(cx + 215, 635, cx + 212, 760, cx + 188, 848);
-    ctx.quadraticCurveTo(cx, 882, cx - 188, 848);
-    ctx.bezierCurveTo(cx - 212, 760, cx - 215, 635, cx - 195, 495);
-    ctx.bezierCurveTo(cx - 215, 560, cx - 225, 700, cx - 215, 835);
-    ctx.lineTo(cx - 295, 845);
-    ctx.bezierCurveTo(cx - 345, 735, cx - 355, 580, cx - 315, 425);
-    ctx.bezierCurveTo(cx - 275, 295, cx - 195, 240, cx - 95, 225);
-    ctx.closePath();
-    ctx.fillStyle = grad;
-    ctx.fill();
-
-    ctx.shadowColor = 'transparent';
-    // Gola ribana + barra ribana + punhos ribana
-    ctx.fillStyle = product.colorDeep;
-    ctx.beginPath();
-    ctx.roundRect(cx - 186, 795, 372, 62, 18);
-    ctx.fill();
-    ctx.strokeStyle = product.colorDeep;
-    ctx.lineWidth = 28;
-    ctx.beginPath();
-    ctx.moveTo(cx - 95, 232);
-    ctx.quadraticCurveTo(cx, 272, cx + 95, 232);
-    ctx.stroke();
-
-    // Zíper metálico central
-    ctx.strokeStyle = '#E4E7EB';
-    ctx.lineWidth = 7;
-    ctx.beginPath();
-    ctx.moveTo(cx, 252);
-    ctx.lineTo(cx, 855);
-    ctx.stroke();
-    ctx.fillStyle = '#D1D5DB';
-    ctx.fillRect(cx - 9, 295, 18, 34);
-
-    // Franzidos nas mangas bufantes
-    ctx.strokeStyle = 'rgba(255,255,255,0.28)';
-    ctx.lineWidth = 3;
-    [410, 490, 575, 665].forEach((my) => {
-      ctx.beginPath();
-      ctx.moveTo(cx - 325, my);
-      ctx.quadraticCurveTo(cx - 265, my + 18, cx - 215, my - 5);
-      ctx.moveTo(cx + 325, my);
-      ctx.quadraticCurveTo(cx + 265, my + 18, cx + 215, my - 5);
-      ctx.stroke();
-    });
-  } else if (product.silhouette === 'ribbed-cutout') {
-    // Top cropped assimétrico um ombro só + cut-out
-    ctx.beginPath();
-    ctx.moveTo(cx - 140, 210);
-    ctx.lineTo(cx - 72, 210);
-    ctx.bezierCurveTo(cx - 30, 320, cx + 72, 352, cx + 150, 325);
-    ctx.lineTo(cx + 154, 480);
-    ctx.quadraticCurveTo(cx, 500, cx - 152, 480);
-    ctx.closePath();
-    ctx.fillStyle = grad;
-    ctx.fill();
-
-    // Recorte cut-out oval na frente
-    ctx.save();
-    ctx.globalCompositeOperation = transparentBg ? 'destination-out' : 'source-over';
-    ctx.fillStyle = transparentBg ? '#000000' : product.colorSoft;
-    ctx.beginPath();
-    ctx.ellipse(cx + 12, 395, 44, 20, -0.18, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    // Saia midi justa com fenda lateral
-    ctx.beginPath();
-    ctx.moveTo(cx - 134, 530);
-    ctx.lineTo(cx + 134, 530);
-    ctx.bezierCurveTo(cx + 178, 635, cx + 164, 830, cx + 154, 1025);
-    ctx.lineTo(cx + 88, 1025);
-    ctx.lineTo(cx + 76, 765);
-    ctx.lineTo(cx + 42, 1025);
-    ctx.lineTo(cx - 154, 1025);
-    ctx.bezierCurveTo(cx - 164, 830, cx - 178, 635, cx - 134, 530);
-    ctx.closePath();
-    ctx.fillStyle = grad;
-    ctx.fill();
-
-    ctx.shadowColor = 'transparent';
-    // Canelado vertical
-    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
-    ctx.lineWidth = 2;
-    for (let x = cx - 150; x <= cx + 150; x += 14) {
-      ctx.beginPath();
-      ctx.moveTo(x, 220);
-      ctx.lineTo(x, 1020);
-      ctx.stroke();
-    }
-  } else {
-    // Vestido Mini Drapeado Ônix com alças assimétricas + drapeado lateral
-    ctx.strokeStyle = product.colorDeep;
-    ctx.lineWidth = 9;
-    ctx.beginPath();
-    ctx.moveTo(cx - 115, 220);
-    ctx.lineTo(cx - 122, 365);
-    ctx.moveTo(cx + 98, 220);
-    ctx.lineTo(cx + 132, 345);
-    ctx.moveTo(cx + 112, 226);
-    ctx.lineTo(cx - 28, 382);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(cx - 134, 358);
-    ctx.quadraticCurveTo(cx + 12, 396, cx + 144, 338);
-    ctx.bezierCurveTo(cx + 160, 470, cx + 122, 540, cx + 132, 610);
-    ctx.bezierCurveTo(cx + 178, 725, cx + 168, 845, cx + 152, 920);
-    ctx.quadraticCurveTo(cx + 68, 868, cx - 148, 955);
-    ctx.bezierCurveTo(cx - 176, 825, cx - 172, 705, cx - 132, 610);
-    ctx.bezierCurveTo(cx - 120, 540, cx - 154, 460, cx - 134, 358);
-    ctx.closePath();
-    ctx.fillStyle = grad;
-    ctx.fill();
-
-    ctx.shadowColor = 'transparent';
-    // Dobras de drapeado lateral ajustável
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    ctx.lineWidth = 3;
-    for (let y = 520; y <= 880; y += 34) {
-      ctx.beginPath();
-      ctx.moveTo(cx - 140, y + 18);
-      ctx.quadraticCurveTo(cx + 15, y - 16, cx + 145, y - 24);
-      ctx.stroke();
-    }
-    // Cordão lateral franzido
-    ctx.strokeStyle = '#D5D2DD';
-    ctx.lineWidth = 3.5;
-    ctx.beginPath();
-    ctx.moveTo(cx + 124, 885);
-    ctx.quadraticCurveTo(cx + 142, 965, cx + 118, 1025);
-    ctx.moveTo(cx + 124, 885);
-    ctx.quadraticCurveTo(cx + 106, 955, cx + 138, 1015);
-    ctx.stroke();
-  }
-
+  ctx.shadowColor = 'rgba(24,22,21,0.18)';
+  ctx.shadowBlur = 24;
+  ctx.shadowOffsetY = 8;
+  ctx.fillStyle = '#F7F3EC';
+  ctx.fillRect(lx, ly, lw, lh);
   ctx.restore();
 
-  const url = canvas.toDataURL('image/png');
-  previewCache.set(cacheKey, url);
-  return url;
+  ctx.strokeStyle = '#C9B290';
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(lx + 10, ly + 10, lw - 20, lh - 20);
+
+  ctx.fillStyle = '#181615';
+  ctx.textAlign = 'center';
+  ctx.font = '700 32px "Syne", sans-serif';
+  ctx.fillText('HARUMI MODAS', W / 2, ly + 58);
+  ctx.fillStyle = '#8C7554';
+  ctx.font = '600 16px "Plus Jakarta Sans", sans-serif';
+  ctx.fillText('TOKYO • STREET LUXE D2C', W / 2, ly + 90);
+
+  // Detalhes editoriais do verso
+  ctx.fillStyle = 'rgba(24,22,21,0.08)';
+  ctx.font = '800 220px "Syne", sans-serif';
+  ctx.fillText(product.code, W / 2, 520);
+
+  ctx.fillStyle = '#181615';
+  ctx.font = '800 36px "Syne", sans-serif';
+  ctx.fillText(product.name.toUpperCase(), W / 2, 620);
+
+  ctx.fillStyle = product.accentText;
+  ctx.font = '600 22px "Plus Jakarta Sans", sans-serif';
+  ctx.fillText(product.fabricTitle.toUpperCase(), W / 2, 675);
+
+  // Bloco de composição e cuidados
+  ctx.fillStyle = 'rgba(255,255,255,0.68)';
+  ctx.beginPath();
+  ctx.roundRect(96, 745, W - 192, 235, 28);
+  ctx.fill();
+
+  ctx.fillStyle = '#8C7554';
+  ctx.font = '700 16px "Plus Jakarta Sans", sans-serif';
+  ctx.fillText('COMPOSIÇÃO & CUIDADOS DO ATELIER', W / 2, 800);
+
+  ctx.fillStyle = '#181615';
+  ctx.font = '500 21px "Plus Jakarta Sans", sans-serif';
+  ctx.fillText(product.composition, W / 2, 855);
+  ctx.fillStyle = 'rgba(24,22,21,0.7)';
+  ctx.font = '400 19px "Plus Jakarta Sans", sans-serif';
+  ctx.fillText(product.care, W / 2, 902);
+  ctx.fillStyle = '#181615';
+  ctx.font = '700 22px "Plus Jakarta Sans", sans-serif';
+  ctx.fillText(`SKU ${product.sku}  •  ${formatYen(product.price)}`, W / 2, 952);
+
+  ctx.fillStyle = 'rgba(24,22,21,0.5)';
+  ctx.font = '600 17px "Plus Jakarta Sans", sans-serif';
+  ctx.fillText('PORTAL LOJAS JP • LOJAJP.COM', W / 2, H - 86);
+
+  const dataUrl = canvas.toDataURL('image/png');
+  backSpecCache.set(product.id, dataUrl);
+  return dataUrl;
 }
 
-export function getProductImageUrl(product, side = 'front') {
-  const publicId =
-    side === 'front' ? product.cloudinaryFrontId : product.cloudinaryBackId;
-  const cloudinaryUrl = getCloudinaryUrl(publicId);
-  if (cloudinaryUrl) return cloudinaryUrl;
-  return generateCleanGarmentPng(product, false);
+/**
+ * Resolve a imagem final da peça levando em conta overrides do Gerenciador Cloudinary
+ * salvos em localStorage -> IDs fixos no catálogo -> fotografia editorial local de estúdio.
+ */
+export function getProductImageUrl(product, side = 'front', customPhotos = null) {
+  const custom = customPhotos?.[product.id];
+  const removeBg = custom?.removeBg !== false;
+
+  if (side === 'front') {
+    if (custom?.front) {
+      const resolved = resolveCloudinaryOrUrl(custom.front, removeBg);
+      if (resolved) return resolved;
+    }
+    if (product.cloudinaryFrontId) {
+      const resolved = resolveCloudinaryOrUrl(product.cloudinaryFrontId, true);
+      if (resolved) return resolved;
+    }
+    return product.defaultFrontImage;
+  }
+
+  // Verso / Costas
+  if (custom?.back) {
+    const resolved = resolveCloudinaryOrUrl(custom.back, removeBg);
+    if (resolved) return resolved;
+  }
+  if (product.cloudinaryBackId) {
+    const resolved = resolveCloudinaryOrUrl(product.cloudinaryBackId, true);
+    if (resolved) return resolved;
+  }
+  return generateBackEditorialCard(product);
 }

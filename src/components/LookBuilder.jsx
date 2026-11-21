@@ -13,6 +13,7 @@ function buildSuggestedLook(activeIndex) {
 
 export default function LookBuilder({
   activeIndex,
+  customPhotos,
   onAddLookCombo
 }) {
   const [slots, setSlots] = useState(() => buildSuggestedLook(activeIndex));
@@ -153,9 +154,9 @@ export default function LookBuilder({
                       style={{ backgroundColor: slot.product.colorSoft }}
                     >
                       <img
-                        src={getProductImageUrl(slot.product, 'front')}
+                        src={getProductImageUrl(slot.product, 'front', customPhotos)}
                         alt={slot.product.name}
-                        className="h-full w-full object-contain p-2"
+                        className="h-full w-full object-cover object-top"
                       />
                     </div>
 
@@ -238,9 +239,9 @@ export default function LookBuilder({
                           style={{ backgroundColor: p.colorSoft }}
                         >
                           <img
-                            src={getProductImageUrl(p, 'front')}
+                            src={getProductImageUrl(p, 'front', customPhotos)}
                             alt={p.shortName}
-                            className="h-full w-full object-contain p-0.5"
+                            className="h-full w-full object-cover object-top"
                           />
                           {selected && (
                             <span className="absolute bottom-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#181615] text-[#F7F4F0]">

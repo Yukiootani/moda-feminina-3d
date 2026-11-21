@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { ContactShadows, Environment, Lightformer } from '@react-three/drei';
 import * as THREE from 'three';
 import {
@@ -13,20 +13,18 @@ import {
   ShoppingBag,
   Layers
 } from 'lucide-react';
-import { formatYen } from '../data/products';
-import Garment3DModel from './Garment3DModel';
+import { formatYen, getProductImageUrl } from '../data/products';
+import EditorialGarment3D from './EditorialGarment3D';
 
-/**
- * Palco 3D interativo de inspeção + exposição de snapshot PNG real da peça 3D
- */
-function InspectableSculptedGarment({
+function InspectableEditorialLookbook({
   product,
+  frontUrl,
+  backUrl,
   targetRotationY,
   autoSpin,
   zoomFabric,
-  onRegisterCapture
+  parallax
 }) {
-  const { gl, scene, camera } = useThree();
   const groupRef = useRef();
   const isDraggingRef = useRef(false);
   const prevPointerXRef = useRef(0);
@@ -36,49 +34,26 @@ function InspectableSculptedGarment({
     manualRotRef.current = targetRotationY;
   }, [targetRotationY, product.id]);
 
-  // Registra função que captura um PNG limpo de alta resolução da peça 3D ativa
-  useEffect(() => {
-    if (!onRegisterCapture) return;
-    onRegisterCapture(() => {
-      try {
-        // Renderiza o frame atual com fundo branco limpo para máxima clareza no Gemini
-        const prevBg = scene.background;
-        const prevRot = groupRef.current ? groupRef.current.rotation.y : 0;
-        if (groupRef.current) {
-          groupRef.current.rotation.y = 0.14; // ângulo frontal leve em 3/4 mostrando volume 3D
-        }
-        scene.background = new THREE.Color('#FAF7F3');
-        gl.render(scene, camera);
-        const dataUrl = gl.domElement.toDataURL('image/png');
-        scene.background = prevBg;
-        if (groupRef.current) {
-          groupRef.current.rotation.y = prevRot;
-        }
-        gl.render(scene, camera);
-        return dataUrl;
-      } catch {
-        return null;
-      }
-    });
-  }, [gl, scene, camera, onRegisterCapture, product.id]);
-
   useFrame((state, delta) => {
     const t = state.clock.getElapsedTime();
     if (!groupRef.current) return;
 
     if (autoSpin && !isDraggingRef.current) {
-      manualRotRef.current += delta * 0.95;
+      manualRotRef.current += delta * 0.9;
     }
 
-    const desiredRotY = manualRotRef.current + (autoSpin ? 0 : Math.sin(t * 0.75) * 0.12);
+    const desiredRotY =
+      manualRotRef.current +
+      (autoSpin ? 0 : (parallax?.x || 0) * 0.14 + Math.sin(t * 0.65) * 0.06);
+
     groupRef.current.rotation.y = THREE.MathUtils.lerp(
       groupRef.current.rotation.y,
       desiredRotY,
       Math.min(1, delta * 6.5)
     );
-    groupRef.current.position.y = Math.sin(t * 1.4) * 0.06;
+    groupRef.current.position.y = Math.sin(t * 1.35) * 0.05;
 
-    const targetScale = zoomFabric ? 1.32 : 1.08;
+    const targetScale = zoomFabric ? 1.24 : 1.04;
     const s = THREE.MathUtils.lerp(
       groupRef.current.scale.x,
       targetScale,
@@ -89,31 +64,23 @@ function InspectableSculptedGarment({
 
   return (
     <>
-      <ambientLight intensity={0.82} />
-      <directionalLight position={[4, 7, 6]} intensity={1.7} color="#FFFBF4" castShadow />
-      <directionalLight position={[-5, 3, -4]} intensity={1.05} color="#F3E2D0" />
-      <spotLight position={[0, 6, -6]} intensity={1.1} angle={0.6} penumbra={0.8} />
+      <ambientLight intensity={1.12} />
+      <directionalLight position={[4, 6, 6]} intensity={1.15} color="#FFFBF5" />
+      <directionalLight position={[-4, 3, -5]} intensity={0.7} color="#F3E2D0" />
       <Environment resolution={256}>
         <Lightformer
           form="rect"
-          intensity={2.4}
+          intensity={1.7}
           position={[0, 5, 4]}
           scale={[8, 4, 1]}
           color="#FFF9F0"
         />
         <Lightformer
           form="ring"
-          intensity={1.6}
+          intensity={1.1}
           position={[-4, 2, 2]}
           scale={4}
           color="#F7DFC6"
-        />
-        <Lightformer
-          form="rect"
-          intensity={1.4}
-          position={[4, 0, -4]}
-          scale={[5, 5, 1]}
-          color="#FFFFFF"
         />
       </Environment>
 
@@ -137,15 +104,23 @@ function InspectableSculptedGarment({
           isDraggingRef.current = false;
         }}
       >
-        <Garment3DModel product={product} animateBreathe={false} />
+        <EditorialGarment3D
+          frontUrl={frontUrl}
+          backUrl={backUrl}
+          accentColor={product.colorSoft}
+          width={2.55}
+          height={3.4}
+          waveIntensity={0.04}
+          parallax={parallax}
+        />
       </group>
 
       <ContactShadows
-        position={[0, -1.65, 0]}
-        opacity={0.34}
+        position={[0, -1.86, 0]}
+        opacity={0.3}
         scale={7}
-        blur={2.2}
-        far={4}
+        blur={2.5}
+        far={4.5}
         color="#181615"
       />
     </>
@@ -154,18 +129,19 @@ function InspectableSculptedGarment({
 
 export default function InspectionSection({
   product,
+  customPhotos,
   isFavorite,
   onToggleFavorite,
   selectedSize,
   onSelectSize,
   onAddToCart,
-  onOpenTryOn,
-  onRegisterSnapshot
+  onOpenTryOn
 }) {
   const [activeTab, setActiveTab] = useState('fabric');
   const [rotationY, setRotationY] = useState(0);
   const [autoSpin, setAutoSpin] = useState(false);
   const [zoomFabric, setZoomFabric] = useState(false);
+  const [parallax, setParallax] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     setRotationY(0);
@@ -173,10 +149,13 @@ export default function InspectionSection({
     setZoomFabric(false);
   }, [product.id]);
 
+  const frontUrl = getProductImageUrl(product, 'front', customPhotos);
+  const backUrl = getProductImageUrl(product, 'back', customPhotos);
+
   const handleFabricClick = () => {
     setActiveTab('fabric');
     setAutoSpin(false);
-    setRotationY(0.28);
+    setRotationY(0);
     setZoomFabric((z) => !z);
   };
 
@@ -204,12 +183,17 @@ export default function InspectionSection({
   return (
     <section
       id="detalhes"
+      onPointerMove={(e) => {
+        const nx = (e.clientX / window.innerWidth - 0.5) * 2;
+        const ny = (e.clientY / window.innerHeight - 0.5) * 2;
+        setParallax({ x: nx, y: ny });
+      }}
       className="relative min-h-screen w-full overflow-hidden py-24 sm:py-32 transition-colors duration-700"
       style={{
         background: `linear-gradient(180deg, ${product.colorSoft} 0%, #F7F4F0 46%, #F7F4F0 100%)`
       }}
     >
-      {/* Tipografia Gigante Vazada Jovem Urbana ("NEW DROP", "STREET LUXE", "FIT CHECK", "ZARA VIBES") */}
+      {/* Tipografia Gigante Vazada */}
       <div className="pointer-events-none absolute inset-0 flex flex-col justify-between overflow-hidden py-14 select-none">
         <div className="whitespace-nowrap font-display text-[15vw] sm:text-[11vw] font-extrabold uppercase leading-none tracking-[-0.04em] text-outline-accent -ml-6">
           {product.hollowBgTop}
@@ -223,7 +207,7 @@ export default function InspectionSection({
         <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-[11px] font-extrabold uppercase tracking-[0.34em] text-[#8C7554]">
-              FIT CHECK 360° • ESCULTURA 3D REAL • {product.sku}
+              FIT CHECK 3D • LOOKBOOK EDITORIAL • {product.sku}
             </p>
             <h2 className="mt-2 font-display text-3xl sm:text-5xl font-extrabold uppercase tracking-[-0.02em] text-[#181615]">
               {product.name}
@@ -241,10 +225,10 @@ export default function InspectionSection({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
-          {/* Palco 3D Esculpido — Apenas a peça flutuando limpa no espaço */}
+          {/* Palco 3D Editorial com Parallax, Brilho Especular e Rotação Frente/Costas */}
           <div className="lg:col-span-6 relative">
             <div
-              className="relative h-[470px] sm:h-[580px] w-full rounded-[2rem] border border-white/80 shadow-[0_28px_70px_-28px_rgba(24,22,21,0.22)] overflow-hidden cursor-grab active:cursor-grabbing"
+              className="relative h-[490px] sm:h-[600px] w-full rounded-[2rem] border border-white/80 shadow-[0_28px_70px_-28px_rgba(24,22,21,0.22)] overflow-hidden cursor-grab active:cursor-grabbing"
               style={{
                 background: `radial-gradient(circle at 50% 44%, #FFFFFF 0%, ${product.colorSoft} 68%, ${product.bgTint} 100%)`
               }}
@@ -258,29 +242,27 @@ export default function InspectionSection({
                   {autoSpin
                     ? 'Rotação 360° Ativa'
                     : showingBack
-                    ? 'Costas • Costura & Etiqueta'
+                    ? 'Verso • Ficha & Etiqueta'
                     : zoomFabric
-                    ? 'Close • Textura & Relevo'
-                    : 'Arraste para girar 360°'}
+                    ? 'Zoom • Detalhe Editorial'
+                    : 'Arraste para girar Frente / Costas'}
                 </span>
               </div>
 
               <Canvas
                 shadows
-                camera={{ position: [0, 0.08, 4.4], fov: 40 }}
+                camera={{ position: [0, 0.04, 4.9], fov: 40 }}
                 dpr={[1, 2]}
-                gl={{
-                  alpha: true,
-                  antialias: true,
-                  preserveDrawingBuffer: true
-                }}
+                gl={{ alpha: true, antialias: true }}
               >
-                <InspectableSculptedGarment
+                <InspectableEditorialLookbook
                   product={product}
+                  frontUrl={frontUrl}
+                  backUrl={backUrl}
                   targetRotationY={rotationY}
                   autoSpin={autoSpin}
                   zoomFabric={zoomFabric}
-                  onRegisterCapture={onRegisterSnapshot}
+                  parallax={parallax}
                 />
               </Canvas>
 
@@ -303,16 +285,6 @@ export default function InspectionSection({
                   type="button"
                   onClick={() => {
                     setAutoSpin(false);
-                    setRotationY(Math.PI * 0.5);
-                  }}
-                  className="rounded-full px-3 py-1 text-[11px] font-bold text-[#181615]/70 hover:text-[#181615]"
-                >
-                  Perfil
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAutoSpin(false);
                     setRotationY(Math.PI);
                   }}
                   className={`rounded-full px-3.5 py-1 text-[11px] font-bold transition-all ${
@@ -321,7 +293,7 @@ export default function InspectionSection({
                       : 'text-[#181615]/70 hover:text-[#181615]'
                   }`}
                 >
-                  Costas
+                  Costas & Etiqueta
                 </button>
                 <button
                   type="button"
@@ -338,7 +310,7 @@ export default function InspectionSection({
             </div>
           </div>
 
-          {/* Controles à Direita */}
+          {/* Painel Interativo à Direita */}
           <div className="lg:col-span-6 flex flex-col gap-4">
             <div className="glass-panel rounded-[1.75rem] p-6 sm:p-7 shadow-[0_20px_55px_-28px_rgba(24,22,21,0.16)]">
               {activeTab === 'sizes' ? (
@@ -445,7 +417,6 @@ export default function InspectionSection({
               )}
             </div>
 
-            {/* 4 Botões de Inspeção */}
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
@@ -474,7 +445,7 @@ export default function InspectionSection({
                       activeTab === 'fabric' ? 'text-[#F7F4F0]/70' : 'text-[#181615]/55'
                     }`}
                   >
-                    {zoomFabric ? 'Close ativo • Clique p/ sair' : 'Ver caimento & relevo'}
+                    {zoomFabric ? 'Zoom ativo • Clique p/ sair' : 'Ver detalhes de perto'}
                   </span>
                 </div>
               </button>
@@ -508,7 +479,7 @@ export default function InspectionSection({
                         : 'text-[#181615]/55'
                     }`}
                   >
-                    Frente, perfil e costas
+                    Girar frente & verso
                   </span>
                 </div>
               </button>
@@ -572,7 +543,7 @@ export default function InspectionSection({
               </button>
             </div>
 
-            {/* 5) BOTÃO DE DESTAQUE: PROVAR EM MIM (IA) - PROVADOR VIRTUAL */}
+            {/* BOTÃO DE DESTAQUE: PROVAR EM MIM (IA) */}
             <button
               type="button"
               onClick={onOpenTryOn}
@@ -585,7 +556,7 @@ export default function InspectionSection({
                 <div>
                   <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.28em] text-[#D8C7B4]">
                     <Camera className="h-3.5 w-3.5" />
-                    Gemini 2.5 Flash Image • Try-On Real
+                    Gemini Multimodal • Virtual Try-On
                   </span>
                   <span className="mt-0.5 block font-display text-sm sm:text-base font-extrabold uppercase tracking-[0.06em]">
                     PROVAR EM MIM (IA) — PROVADOR VIRTUAL

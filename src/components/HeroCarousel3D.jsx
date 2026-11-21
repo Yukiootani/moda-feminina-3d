@@ -10,17 +10,17 @@ import {
   Sparkles,
   ArrowDownRight
 } from 'lucide-react';
-import { PRODUCTS, formatYen } from '../data/products';
-import Garment3DModel from './Garment3DModel';
+import { PRODUCTS, formatYen, getProductImageUrl } from '../data/products';
+import EditorialGarment3D from './EditorialGarment3D';
 
-/**
- * Peça 3D esculpida individual flutuando limpa no arco horizontal (sem plano retangular).
- */
-function SculptedGarmentSlot({
+function EditorialArcSlot({
   product,
+  frontUrl,
+  backUrl,
   slotOffset,
   visualDelta,
   isCenter,
+  parallax,
   onSelect
 }) {
   const groupRef = useRef();
@@ -31,20 +31,18 @@ function SculptedGarmentSlot({
     const posOffset = slotOffset - visualDelta;
     const absPos = Math.abs(posOffset);
 
-    // Arco horizontal 3D elegante com 5 a 7 peças esculpidas visíveis
     const targetX = posOffset * 2.55;
-    const targetZ = 1.2 - Math.pow(absPos, 1.35) * 1.15;
+    const targetZ = 1.2 - Math.pow(absPos, 1.36) * 1.12;
     const targetY =
-      (isCenter ? 0.12 : -absPos * 0.08) +
-      Math.sin(t * 1.35 + slotOffset * 1.2) * (isCenter ? 0.06 : 0.03);
+      (isCenter ? 0.1 : -absPos * 0.08) +
+      Math.sin(t * 1.3 + slotOffset * 1.1) * (isCenter ? 0.055 : 0.028);
+    const targetRotY =
+      -posOffset * 0.36 +
+      (isCenter ? (parallax?.x || 0) * 0.16 + Math.sin(t * 0.55) * 0.07 : 0);
+    const targetRotZ = -posOffset * 0.03;
 
-    // A peça central gira suavemente revelando volume real 3D; as laterais ficam anguladas em perspectiva
-    const targetRotY = isCenter
-      ? Math.sin(t * 0.55) * 0.42
-      : -posOffset * 0.46 + Math.sin(t * 0.4 + slotOffset) * 0.08;
-
-    const baseScale = Math.max(0.58, 1.1 - absPos * 0.17);
-    const targetScale = baseScale * (hovered ? 1.07 : 1.0);
+    const baseScale = Math.max(0.66, 1.14 - absPos * 0.155);
+    const targetScale = baseScale * (hovered ? 1.05 : 1.0);
 
     if (groupRef.current) {
       const k = Math.min(1, delta * 8.5);
@@ -52,6 +50,7 @@ function SculptedGarmentSlot({
       groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, targetY, k);
       groupRef.current.position.z = THREE.MathUtils.lerp(groupRef.current.position.z, targetZ, k);
       groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetRotY, k);
+      groupRef.current.rotation.z = THREE.MathUtils.lerp(groupRef.current.rotation.z, targetRotZ, k);
       const nextScale = THREE.MathUtils.lerp(groupRef.current.scale.x, targetScale, k);
       groupRef.current.scale.setScalar(nextScale);
     }
@@ -74,12 +73,25 @@ function SculptedGarmentSlot({
         document.body.style.cursor = 'auto';
       }}
     >
-      <Garment3DModel product={product} animateBreathe={false} />
+      <EditorialGarment3D
+        frontUrl={frontUrl}
+        backUrl={backUrl}
+        accentColor={product.colorSoft}
+        width={2.35}
+        height={3.14}
+        waveIntensity={isCenter ? 0.048 : 0.022}
+        parallax={isCenter ? parallax : { x: 0, y: 0 }}
+      />
     </group>
   );
 }
 
-function ArcCarouselScene({ scrollFloatRef, onSelectOffset }) {
+function ArcCarouselScene({
+  scrollFloatRef,
+  onSelectOffset,
+  customPhotos,
+  parallax
+}) {
   const [centerInt, setCenterInt] = useState(0);
   const [visualDelta, setVisualDelta] = useState(0);
 
@@ -97,42 +109,23 @@ function ArcCarouselScene({ scrollFloatRef, onSelectOffset }) {
 
   return (
     <>
-      <ambientLight intensity={0.75} />
-      <directionalLight
-        position={[5, 8, 7]}
-        intensity={1.65}
-        color="#FFF9F2"
-        castShadow
-      />
-      <directionalLight position={[-6, 3, 4]} intensity={0.85} color="#F7DFC6" />
-      <spotLight
-        position={[0, 7, -5]}
-        intensity={1.15}
-        angle={0.6}
-        penumbra={0.8}
-        color="#FFFFFF"
-      />
+      <ambientLight intensity={1.08} />
+      <directionalLight position={[4, 7, 7]} intensity={1.15} color="#FFFBF5" />
+      <directionalLight position={[-5, 2, 4]} intensity={0.6} color="#F7E5D3" />
       <Environment resolution={256}>
         <Lightformer
           form="rect"
-          intensity={2.2}
+          intensity={1.6}
           position={[0, 5, 4]}
           scale={[10, 4, 1]}
           color="#FFF9F0"
         />
         <Lightformer
           form="ring"
-          intensity={1.5}
+          intensity={1.1}
           position={[-5, 2, 3]}
           scale={5}
           color="#F7DEC8"
-        />
-        <Lightformer
-          form="rect"
-          intensity={1.3}
-          position={[5, -1, -4]}
-          scale={[6, 6, 1]}
-          color="#FFFFFF"
         />
       </Environment>
 
@@ -142,12 +135,15 @@ function ArcCarouselScene({ scrollFloatRef, onSelectOffset }) {
           const productIndex = ((virtualIndex % total) + total) % total;
           const product = PRODUCTS[productIndex];
           return (
-            <SculptedGarmentSlot
+            <EditorialArcSlot
               key={virtualIndex}
               product={product}
+              frontUrl={getProductImageUrl(product, 'front', customPhotos)}
+              backUrl={getProductImageUrl(product, 'back', customPhotos)}
               slotOffset={slotOffset}
               visualDelta={visualDelta}
               isCenter={slotOffset === 0}
+              parallax={parallax}
               onSelect={() => onSelectOffset(slotOffset)}
             />
           );
@@ -155,10 +151,10 @@ function ArcCarouselScene({ scrollFloatRef, onSelectOffset }) {
       </group>
 
       <ContactShadows
-        position={[0, -1.65, 0]}
-        opacity={0.32}
+        position={[0, -1.78, 0]}
+        opacity={0.28}
         scale={16}
-        blur={2.4}
+        blur={2.6}
         far={4.5}
         color="#181615"
       />
@@ -169,7 +165,8 @@ function ArcCarouselScene({ scrollFloatRef, onSelectOffset }) {
 export default function HeroCarousel3D({
   activeIndex,
   onChangeIndex,
-  onOpenTryOn
+  onOpenTryOn,
+  customPhotos
 }) {
   const total = PRODUCTS.length;
   const activeProduct = PRODUCTS[activeIndex];
@@ -357,7 +354,7 @@ export default function HeroCarousel3D({
         ))}
       </div>
 
-      {/* Cantos Flutuantes com Parallax — Estética Street Luxe / Zara Vibes */}
+      {/* Cantos Flutuantes com Parallax */}
       <div
         className="pointer-events-none hidden md:flex absolute top-28 left-8 z-10 flex-col gap-1.5 transition-transform duration-300 ease-out"
         style={{
@@ -365,7 +362,7 @@ export default function HeroCarousel3D({
         }}
       >
         <span className="text-[10px] font-extrabold uppercase tracking-[0.34em] text-[#181615]/60">
-          NEW DROP • STREET LUXE 26
+          NEW DROP • LOOKBOOK 26
         </span>
         <div className="flex items-center gap-2">
           <span
@@ -385,14 +382,14 @@ export default function HeroCarousel3D({
         }}
       >
         <span className="text-[10px] font-extrabold uppercase tracking-[0.32em] text-[#181615]/55">
-          FIT CHECK • 3D SCULPTED
+          ZARA VIBES • STREET LUXE
         </span>
         <span className="font-display text-sm font-bold uppercase tracking-[0.1em] text-[#181615]/80">
           {activeProduct.fabricTitle}
         </span>
       </div>
 
-      {/* Palco 3D com Peças Esculpidas Recortadas (ZERO plano retangular) */}
+      {/* Palco 3D Editorial Lookbook com Carrossel em Arco */}
       <div
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
@@ -401,13 +398,15 @@ export default function HeroCarousel3D({
       >
         <Canvas
           shadows
-          camera={{ position: [0, 0.15, 6.4], fov: 39 }}
+          camera={{ position: [0, 0.1, 6.7], fov: 39 }}
           dpr={[1, 2]}
           gl={{ alpha: true, antialias: true }}
         >
           <ArcCarouselScene
             scrollFloatRef={scrollFloatRef}
             onSelectOffset={handleSelectOffset}
+            customPhotos={customPhotos}
+            parallax={parallax}
           />
         </Canvas>
 
@@ -439,7 +438,7 @@ export default function HeroCarousel3D({
                 {formatYen(activeProduct.price)}
               </span>
               <span className="rounded-full border border-[#181615]/15 bg-[#F7F4F0]/80 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-[#181615]/80">
-                ZARA VIBES • STREET DROP
+                EDITORIAL LOOKBOOK
               </span>
               <span className="text-xs font-medium tracking-[0.04em] text-[#181615]/75">
                 {activeProduct.tagline}
@@ -459,7 +458,7 @@ export default function HeroCarousel3D({
                 }}
                 className="inline-flex items-center gap-2 rounded-full bg-[#181615] px-5 py-2.5 text-xs font-bold uppercase tracking-[0.16em] text-[#F7F4F0] shadow-md transition-all hover:bg-[#312B27]"
               >
-                <span>Fit Check 360°</span>
+                <span>Fit Check 3D</span>
                 <ArrowDownRight className="h-4 w-4" />
               </button>
 

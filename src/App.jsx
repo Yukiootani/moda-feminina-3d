@@ -1,11 +1,17 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Sparkles, X, MessageCircle, Check } from 'lucide-react';
-import { PRODUCTS, getProductImageUrl } from './data/products';
+import {
+  PRODUCTS,
+  getProductImageUrl,
+  loadCustomPhotos,
+  saveCustomPhotos
+} from './data/products';
 import IntroOverlay from './components/IntroOverlay';
 import Navbar from './components/Navbar';
 import HeroCarousel3D from './components/HeroCarousel3D';
 import InspectionSection from './components/InspectionSection';
 import VirtualTryOnModal from './components/VirtualTryOnModal';
+import CloudinaryManagerModal from './components/CloudinaryManagerModal';
 import ShopSection from './components/ShopSection';
 import LookBuilder from './components/LookBuilder';
 import CartDrawer from './components/CartDrawer';
@@ -20,29 +26,15 @@ export default function App() {
   const [cartItems, setCartItems] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [tryOnOpen, setTryOnOpen] = useState(false);
-  const [garmentSnapshot, setGarmentSnapshot] = useState(null);
+  const [photoManagerOpen, setPhotoManagerOpen] = useState(false);
+  const [customPhotos, setCustomPhotos] = useState(() => loadCustomPhotos());
   const [newsOpen, setNewsOpen] = useState(false);
   const [flyItems, setFlyItems] = useState([]);
   const [bagPulse, setBagPulse] = useState(false);
   const [toast, setToast] = useState(null);
 
-  const snapshotCaptureRef = useRef(null);
-
   const activeProduct = PRODUCTS[activeIndex];
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-
-  const registerSnapshotCapture = useCallback((fn) => {
-    snapshotCaptureRef.current = fn;
-  }, []);
-
-  const openTryOnModal = useCallback(() => {
-    let captured = null;
-    if (typeof snapshotCaptureRef.current === 'function') {
-      captured = snapshotCaptureRef.current();
-    }
-    setGarmentSnapshot(captured);
-    setTryOnOpen(true);
-  }, []);
 
   const showToast = useCallback((message) => {
     setToast(message);
@@ -50,6 +42,15 @@ export default function App() {
       setToast((prev) => (prev === message ? null : prev));
     }, 2800);
   }, []);
+
+  const handleSavePhotos = useCallback(
+    (nextPhotos) => {
+      setCustomPhotos(nextPhotos);
+      saveCustomPhotos(nextPhotos);
+      showToast('Fotos do catálogo atualizadas em tempo real');
+    },
+    [showToast]
+  );
 
   const triggerBagPulse = useCallback(() => {
     setBagPulse(true);
@@ -98,7 +99,7 @@ export default function App() {
             startY,
             deltaX: targetX - startX,
             deltaY: targetY - startY,
-            imageUrl: getProductImageUrl(product, 'front')
+            imageUrl: getProductImageUrl(product, 'front', customPhotos)
           }
         ]);
 
@@ -110,7 +111,7 @@ export default function App() {
         addToCart(product, size, false);
       }
     },
-    [addToCart]
+    [addToCart, customPhotos]
   );
 
   const handleAddLookCombo = useCallback(
@@ -193,33 +194,36 @@ export default function App() {
         <HeroCarousel3D
           activeIndex={activeIndex}
           onChangeIndex={setActiveIndex}
-          onOpenTryOn={openTryOnModal}
+          onOpenTryOn={() => setTryOnOpen(true)}
+          customPhotos={customPhotos}
         />
 
         <InspectionSection
           product={activeProduct}
+          customPhotos={customPhotos}
           isFavorite={favorites.includes(activeProduct.id)}
           onToggleFavorite={handleToggleFavorite}
           selectedSize={selectedSize}
           onSelectSize={setSelectedSize}
           onAddToCart={(prod, sz) => addToCart(prod, sz, true)}
-          onOpenTryOn={openTryOnModal}
-          onRegisterSnapshot={registerSnapshotCapture}
+          onOpenTryOn={() => setTryOnOpen(true)}
         />
 
         <ShopSection
           activeIndex={activeIndex}
+          customPhotos={customPhotos}
           onInspectProduct={handleInspectFromShop}
           onAddWithFly={handleAddWithFly}
         />
 
         <LookBuilder
           activeIndex={activeIndex}
+          customPhotos={customPhotos}
           onAddLookCombo={handleAddLookCombo}
         />
       </main>
 
-      <Footer />
+      <Footer onOpenPhotoManager={() => setPhotoManagerOpen(true)} />
 
       <VirtualTryOnModal
         isOpen={tryOnOpen}
@@ -228,13 +232,21 @@ export default function App() {
         selectedSize={selectedSize}
         onSelectSize={setSelectedSize}
         onAddAndOpenCart={(prod, sz) => addToCart(prod, sz, true)}
-        garmentSnapshot={garmentSnapshot}
+        customPhotos={customPhotos}
+      />
+
+      <CloudinaryManagerModal
+        isOpen={photoManagerOpen}
+        onClose={() => setPhotoManagerOpen(false)}
+        customPhotos={customPhotos}
+        onSavePhotos={handleSavePhotos}
       />
 
       <CartDrawer
         isOpen={cartOpen}
         onClose={() => setCartOpen(false)}
         items={cartItems}
+        customPhotos={customPhotos}
         onUpdateQty={handleUpdateQty}
         onRemoveItem={handleRemoveItem}
         onClearCart={() => setCartItems([])}
@@ -278,7 +290,7 @@ export default function App() {
               </div>
               <div className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-[#516858]" />
-                <span>Provador Virtual Real com IA Gemini 2.5 Flash Image</span>
+                <span>Provador Virtual Real com IA Google Gemini</span>
               </div>
               <div className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-[#516858]" />

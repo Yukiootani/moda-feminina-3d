@@ -16,6 +16,7 @@ export default function CartDrawer({
   isOpen,
   onClose,
   items,
+  customPhotos,
   onUpdateQty,
   onRemoveItem,
   onClearCart
@@ -144,9 +145,9 @@ export default function CartDrawer({
                   style={{ backgroundColor: item.product.colorSoft }}
                 >
                   <img
-                    src={getProductImageUrl(item.product, 'front')}
+                    src={getProductImageUrl(item.product, 'front', customPhotos)}
                     alt={item.product.name}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-cover object-top"
                   />
                 </div>
 
