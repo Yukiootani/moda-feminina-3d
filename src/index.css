@@ -1,0 +1,144 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    background-color: #F7F4F0;
+    color: #181615;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    overflow-x: hidden;
+    background-color: #F7F4F0;
+  }
+}
+
+/* Hollow Editorial Outline Typography */
+.text-outline-dark {
+  color: transparent;
+  -webkit-text-stroke: 1.4px rgba(24, 22, 21, 0.24);
+}
+
+.text-outline-light {
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.55);
+}
+
+.text-outline-accent {
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(24, 22, 21, 0.14);
+}
+
+/* Radial Reveal Animation for Hero Dynamic Background */
+@keyframes radialReveal {
+  0% {
+    clip-path: circle(0% at 50% 48%);
+    opacity: 0.92;
+  }
+  100% {
+    clip-path: circle(145% at 50% 48%);
+    opacity: 1;
+  }
+}
+
+.animate-radial-reveal {
+  animation: radialReveal 0.95s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Concentric Ripple Rings */
+@keyframes rippleExpand {
+  0% {
+    transform: translate(-50%, -50%) scale(0.86);
+    opacity: 0.28;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.04);
+    opacity: 0.14;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(0.86);
+    opacity: 0.28;
+  }
+}
+
+.ripple-ring {
+  animation: rippleExpand 9s ease-in-out infinite;
+}
+
+/* Subtle luxury glassmorphism */
+.glass-nav {
+  background: rgba(247, 244, 240, 0.68);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 10px 36px -14px rgba(24, 22, 21, 0.12);
+}
+
+.glass-panel {
+  background: rgba(247, 244, 240, 0.84);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F7F4F0;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(24, 22, 21, 0.22);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(24, 22, 21, 0.38);
+}
+
+/* Shimmer CTA border / sweep */
+.btn-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.28) 48%,
+    transparent 76%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3.2s infinite linear;
+  pointer-events: none;
+}
+
+/* Fly to bag keyframe */
+@keyframes flyToBag {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  55% {
+    transform: translate(calc(var(--tx) * 0.55), calc(var(--ty) * 0.65 - 60px)) scale(0.72);
+    opacity: 0.95;
+  }
+  100% {
+    transform: translate(var(--tx), var(--ty)) scale(0.18);
+    opacity: 0;
+  }
+}
+
+.animate-fly-to-bag {
+  animation: flyToBag 0.78s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
