@@ -3,16 +3,16 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 /**
- * AlphaMap procedural com bordas suavemente arredondadas e esfumadas (vignette alpha)
- * para eliminar qualquer efeito visual de "cartão/folha retangular dura" no espaço 3D.
+ * AlphaMap procedural com bordas arredondadas elegantes (3:4) para evitar
+ * cantos retos de folha e integrar a fotografia editorial ao espaço 3D.
  */
-let sharedFeatherAlphaMap = null;
-function getSoftEditorialAlphaMap() {
-  if (sharedFeatherAlphaMap || typeof document === 'undefined') {
-    return sharedFeatherAlphaMap;
+let sharedRoundedAlphaMap = null;
+function getRoundedEditorialAlphaMap() {
+  if (sharedRoundedAlphaMap || typeof document === 'undefined') {
+    return sharedRoundedAlphaMap;
   }
   const W = 512;
-  const H = 680;
+  const H = 682;
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
@@ -21,53 +21,63 @@ function getSoftEditorialAlphaMap() {
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, W, H);
 
-  // Desenha uma cápsula editorial bem suave com desfoque orgânico nas bordas
   ctx.save();
-  ctx.filter = 'blur(16px)';
+  ctx.filter = 'blur(5px)';
   ctx.fillStyle = '#FFFFFF';
   ctx.beginPath();
-  ctx.roundRect(22, 22, W - 44, H - 44, 72);
+  ctx.roundRect(10, 10, W - 20, H - 20, 48);
   ctx.fill();
   ctx.restore();
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.needsUpdate = true;
-  sharedFeatherAlphaMap = tex;
+  sharedRoundedAlphaMap = tex;
   return tex;
 }
 
 /**
- * Carrega textura WebGL com CORS limpo e dispose seguro quando a URL muda (ex: Cloudinary Manager).
+ * Carregador confiável de textura para imagens locais (`/roupas/*.png`),
+ * Data URLs e URLs Cloudinary CORS, garantindo `needsUpdate = true` e
+ * recompilação correta do material no Three.js (zero planos brancos!).
  */
-function useEditorialTexture(url) {
+function useReliableEditorialTexture(url) {
   const [texture, setTexture] = useState(null);
 
   useEffect(() => {
-    if (!url) return;
-    let cancelled = false;
-    const loader = new THREE.TextureLoader();
-    loader.setCrossOrigin('anonymous');
+    if (!url) {
+      setTexture(null);
+      return;
+    }
 
-    loader.load(
-      url,
-      (loaded) => {
-        if (cancelled) {
-          loaded.dispose();
-          return;
-        }
-        loaded.colorSpace = THREE.SRGBColorSpace;
-        loaded.anisotropy = 8;
-        loaded.needsUpdate = true;
-        setTexture((prev) => {
-          if (prev && prev !== loaded) prev.dispose();
-          return loaded;
-        });
-      },
-      undefined,
-      () => {
-        // Silencioso em caso de URL digitada incompleta no gerenciador
+    let cancelled = false;
+    const img = new Image();
+    if (/^https?:\/\//i.test(url)) {
+      img.crossOrigin = 'anonymous';
+    }
+
+    img.onload = () => {
+      if (cancelled) return;
+      const tex = new THREE.Texture(img);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 8;
+      tex.minFilter = THREE.LinearMipmapLinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      tex.generateMipmaps = true;
+      tex.needsUpdate = true;
+
+      setTexture((prev) => {
+        if (prev && prev !== tex) prev.dispose();
+        return tex;
+      });
+    };
+
+    img.onerror = () => {
+      if (!cancelled) {
+        console.warn('[Harumi Modas 3D] Falha ao carregar textura:', url);
       }
-    );
+    };
+
+    img.src = url;
 
     return () => {
       cancelled = true;
@@ -78,26 +88,38 @@ function useEditorialTexture(url) {
 }
 
 /**
- * Plano 3D Curvo de Fotografia Editorial Lookbook (Estilo Zara / Bershka)
- * - ZERO bordas retangulares duras (alphaMap com feathering orgânico)
- * - Curvatura 3D sutil de tecido/revista de luxo + ondulação respiratória suave
- * - Brilho especular sutil (`MeshPhysicalMaterial`) + rotação suave entre Frente e Costas
+ * Fotografia Editorial Lookbook 3D (Proporção 3:4, bordas arredondadas, curvatura sutil,
+ * parallax 3D suave, brilho especular discreto e rotação Frente/Costas sem quadros brancos).
  */
 export default function EditorialGarment3D({
   frontUrl,
   backUrl,
-  accentColor = '#D47A6A',
-  width = 2.45,
-  height = 3.25,
-  waveIntensity = 0.045,
+  accentColor = '#E6BFB6',
+  width = 2.34,
+  height = 3.12,
+  waveIntensity = 0.036,
   parallax = { x: 0, y: 0 }
 }) {
   const groupRef = useRef();
-  const frontTex = useEditorialTexture(frontUrl);
-  const backTex = useEditorialTexture(backUrl);
-  const alphaMap = useMemo(() => getSoftEditorialAlphaMap(), []);
+  const frontMatRef = useRef();
+  const backMatRef = useRef();
 
-  // Geometria curva suave de alta densidade para movimento orgânico
+  const frontTex = useReliableEditorialTexture(frontUrl);
+  const backTex = useReliableEditorialTexture(backUrl);
+  const alphaMap = useMemo(() => getRoundedEditorialAlphaMap(), []);
+
+  useEffect(() => {
+    if (frontMatRef.current) {
+      frontMatRef.current.needsUpdate = true;
+    }
+  }, [frontTex]);
+
+  useEffect(() => {
+    if (backMatRef.current) {
+      backMatRef.current.needsUpdate = true;
+    }
+  }, [backTex]);
+
   const geometry = useMemo(
     () => new THREE.PlaneGeometry(width, height, 28, 36),
     [width, height]
@@ -110,10 +132,9 @@ export default function EditorialGarment3D({
   useFrame((state, delta) => {
     const t = state.clock.getElapsedTime();
 
-    // Parallax suave acompanhando o mouse
     if (groupRef.current) {
-      const targetRotX = THREE.MathUtils.clamp((parallax?.y || 0) * -0.09, -0.14, 0.14);
-      const targetTiltY = THREE.MathUtils.clamp((parallax?.x || 0) * 0.12, -0.18, 0.18);
+      const targetRotX = THREE.MathUtils.clamp((parallax?.y || 0) * -0.08, -0.13, 0.13);
+      const targetShiftX = THREE.MathUtils.clamp((parallax?.x || 0) * 0.08, -0.14, 0.14);
       groupRef.current.rotation.x = THREE.MathUtils.lerp(
         groupRef.current.rotation.x,
         targetRotX,
@@ -121,21 +142,20 @@ export default function EditorialGarment3D({
       );
       groupRef.current.position.x = THREE.MathUtils.lerp(
         groupRef.current.position.x,
-        targetTiltY * 0.35,
+        targetShiftX,
         Math.min(1, delta * 5)
       );
     }
 
-    // Curvatura elegante + respiração sutil de tecido vivo
     const pos = geometry.attributes.position;
     for (let i = 0; i < pos.count; i++) {
       const bx = basePositions[i * 3];
       const by = basePositions[i * 3 + 1];
-      const arch = -0.11 * (bx * bx);
+      const arch = -0.085 * (bx * bx);
       const wave =
-        Math.sin(by * 1.45 - t * 1.65 + bx * 0.95) *
+        Math.sin(by * 1.4 - t * 1.55 + bx * 0.9) *
         waveIntensity *
-        (0.45 + Math.max(0, (height * 0.5 - by) / height));
+        (0.4 + Math.max(0, (height * 0.5 - by) / height));
       pos.setZ(i, arch + wave);
     }
     pos.needsUpdate = true;
@@ -144,41 +164,45 @@ export default function EditorialGarment3D({
 
   return (
     <group ref={groupRef}>
-      {/* Fotografia Editorial - Frente */}
-      <mesh geometry={geometry} position={[0, 0, 0.008]} castShadow>
+      {/* Fotografia Editorial Real - Frente */}
+      <mesh geometry={geometry} position={[0, 0, 0.009]} castShadow>
         <meshPhysicalMaterial
-          map={frontTex || null}
+          ref={frontMatRef}
+          key={frontTex ? `f-${frontTex.uuid}` : 'f-init'}
+          map={frontTex || undefined}
           color={frontTex ? '#FFFFFF' : accentColor}
           alphaMap={alphaMap}
           transparent
-          alphaTest={0.04}
-          roughness={0.26}
-          metalness={0.04}
-          clearcoat={0.28}
-          clearcoatRoughness={0.24}
-          sheen={0.55}
-          sheenRoughness={0.45}
-          sheenColor="#FFF7EE"
+          alphaTest={0.05}
+          roughness={0.44}
+          metalness={0.02}
+          clearcoat={0.14}
+          clearcoatRoughness={0.35}
+          sheen={0.32}
+          sheenRoughness={0.55}
+          sheenColor="#FFF8F0"
         />
       </mesh>
 
-      {/* Fotografia / Ficha Editorial - Verso (Costas + Etiqueta) */}
+      {/* Verso Editorial - Costas / Etiqueta Harumi Modas */}
       <mesh
         geometry={geometry}
-        position={[0, 0, -0.008]}
+        position={[0, 0, -0.009]}
         rotation={[0, Math.PI, 0]}
       >
         <meshPhysicalMaterial
-          map={backTex || null}
+          ref={backMatRef}
+          key={backTex ? `b-${backTex.uuid}` : 'b-init'}
+          map={backTex || undefined}
           color={backTex ? '#FFFFFF' : accentColor}
           alphaMap={alphaMap}
           transparent
-          alphaTest={0.04}
-          roughness={0.32}
-          metalness={0.04}
-          clearcoat={0.2}
-          sheen={0.45}
-          sheenColor="#FFF7EE"
+          alphaTest={0.05}
+          roughness={0.46}
+          metalness={0.02}
+          clearcoat={0.1}
+          sheen={0.28}
+          sheenColor="#FFF8F0"
         />
       </mesh>
     </group>

@@ -64,20 +64,20 @@ function InspectableEditorialLookbook({
 
   return (
     <>
-      <ambientLight intensity={1.12} />
-      <directionalLight position={[4, 6, 6]} intensity={1.15} color="#FFFBF5" />
-      <directionalLight position={[-4, 3, -5]} intensity={0.7} color="#F3E2D0" />
+      <ambientLight intensity={0.85} />
+      <directionalLight position={[4, 6, 6]} intensity={0.72} color="#FFFBF5" />
+      <directionalLight position={[-4, 3, -5]} intensity={0.42} color="#F3E2D0" />
       <Environment resolution={256}>
         <Lightformer
           form="rect"
-          intensity={1.7}
+          intensity={0.85}
           position={[0, 5, 4]}
           scale={[8, 4, 1]}
           color="#FFF9F0"
         />
         <Lightformer
           form="ring"
-          intensity={1.1}
+          intensity={0.55}
           position={[-4, 2, 2]}
           scale={4}
           color="#F7DFC6"

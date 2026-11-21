@@ -19,7 +19,8 @@ async function toInlineImageData(sourceUrl) {
     };
   }
 
-  const res = await fetch(sourceUrl, { mode: 'cors' });
+  const isExternal = /^https?:\/\//i.test(sourceUrl);
+  const res = await fetch(sourceUrl, isExternal ? { mode: 'cors' } : undefined);
   if (!res.ok) {
     throw new Error(
       `Falha ao carregar imagem da peça (HTTP ${res.status}). Verifique se a URL permite CORS.`

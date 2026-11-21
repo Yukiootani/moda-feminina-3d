@@ -75,7 +75,7 @@ export const PRODUCTS = [
     colorSoft: '#F3DFDA',
     bgTint: '#E6BFB6',
     accentText: '#4F221A',
-    defaultFrontImage: './garments/corset-terracota.jpg',
+    defaultFrontImage: '/roupas/corset-terracota.png',
     description:
       'Terracotta satin structured cropped corset top with sweetheart neckline, thin spaghetti straps, vertical couture boning seams, and sleek fitted waist',
     fabricHeadline: 'CETIM ESTRUTURADO. BARBATANAS & DECOTE CORAÇÃO.',
@@ -109,7 +109,7 @@ export const PRODUCTS = [
     colorSoft: '#F2ECE3',
     bgTint: '#E2D6C5',
     accentText: '#463C2E',
-    defaultFrontImage: './garments/cargo-parachute.jpg',
+    defaultFrontImage: '/roupas/calca-cargo.png',
     description:
       'Sand beige streetwear parachute cargo pants with adjustable low-to-mid drawstring waist, wide voluminous legs with knee pleats, large 3D side cargo pockets, and cinched elastic ankle cuffs',
     fabricHeadline: 'NYLON TECHNICAL LEVE. VOLUME STREETWEAR REAL.',
@@ -143,7 +143,7 @@ export const PRODUCTS = [
     colorSoft: '#E3ECE6',
     bgTint: '#C2D3C7',
     accentText: '#233328',
-    defaultFrontImage: './garments/bomber-oversized.jpg',
+    defaultFrontImage: '/roupas/jaqueta-bomber.png',
     description:
       'Sage military green oversized streetwear bomber jacket with metallic front zipper, puffed ruched sleeves with utility bicep pocket, ribbed baseball collar, and cropped ribbed hem',
     fabricHeadline: 'NYLON ACETINADO MILITAR. MANGAS BUFANTES & ZÍPER METAL.',
@@ -177,7 +177,7 @@ export const PRODUCTS = [
     colorSoft: '#F8E3E9',
     bgTint: '#EDCAD3',
     accentText: '#542030',
-    defaultFrontImage: './garments/ribbed-cutout.jpg',
+    defaultFrontImage: '/roupas/conjunto-ribbed.png',
     description:
       'Bubblegum chic pink two-piece ribbed knit co-ord set featuring an asymmetric one-shoulder cut-out cropped top paired with a bodycon fitted midi skirt with a high side slit',
     fabricHeadline: 'MALHA CANELADA PREMIUM. RECORTE ASSIMÉTRICO + FENDA.',
@@ -211,7 +211,7 @@ export const PRODUCTS = [
     colorSoft: '#E5E4E8',
     bgTint: '#C4C1CA',
     accentText: '#232129',
-    defaultFrontImage: './garments/mini-draped-onix.jpg',
+    defaultFrontImage: '/roupas/vestido-onix.png',
     description:
       'Graphite onyx metallic-sheen draped mini dress with asymmetric spaghetti straps, bodycon ruched gathers across the waist and hips, and adjustable side drawstring tie for a chic night-out look',
     fabricHeadline: 'MALHA FLUIDA ÔNIX. DRAPEADO AJUSTÁVEL PARA A NOITE.',

@@ -109,20 +109,20 @@ function ArcCarouselScene({
 
   return (
     <>
-      <ambientLight intensity={1.08} />
-      <directionalLight position={[4, 7, 7]} intensity={1.15} color="#FFFBF5" />
-      <directionalLight position={[-5, 2, 4]} intensity={0.6} color="#F7E5D3" />
+      <ambientLight intensity={0.82} />
+      <directionalLight position={[4, 7, 7]} intensity={0.72} color="#FFFBF5" />
+      <directionalLight position={[-5, 2, 4]} intensity={0.35} color="#F7E5D3" />
       <Environment resolution={256}>
         <Lightformer
           form="rect"
-          intensity={1.6}
+          intensity={0.8}
           position={[0, 5, 4]}
           scale={[10, 4, 1]}
           color="#FFF9F0"
         />
         <Lightformer
           form="ring"
-          intensity={1.1}
+          intensity={0.55}
           position={[-5, 2, 3]}
           scale={5}
           color="#F7DEC8"
